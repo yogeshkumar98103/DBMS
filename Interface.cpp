@@ -43,6 +43,6 @@ public:
     }
 };
 
-void printPrompt(){
+inline void printPrompt(){
     printf("db > ");
 }

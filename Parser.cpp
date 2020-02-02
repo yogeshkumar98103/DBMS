@@ -37,7 +37,8 @@ enum class PrepareResult{
     cannotCreateEmptyTable,
     noTableName,
     noInsertData,
-    noUpdateData
+    noUpdateData,
+    noCondition
 };
 
 enum class ExecuteResult{
@@ -110,17 +111,17 @@ ComparisonType findConparisonType(const char* op){
 }
 
 struct Condition{
-    bool isCompound;
+    bool isCompound{};
     std::string col;
-    void* data1;
-    void* data2;
-    ComparisonType compType1;
-    ComparisonType compType2;
+    void* data1{};
+    void* data2{};
+    ComparisonType compType1{};
+    ComparisonType compType2{};
 };
 
 struct QueryStatement{
     std::string tableName;
-    Table* table;
+    Table* table{};
     virtual ~QueryStatement() = default;
 };
 
@@ -137,20 +138,20 @@ struct InsertStatement: public QueryStatement{
 struct SelectStatement: public QueryStatement{
     std::vector<std::string> colNames;
     Condition condition;
-    bool selectAllRows;
-    bool selectAllCols;
+    bool selectAllRows{};
+    bool selectAllCols{};
 };
 
 struct UpdateStatement: public QueryStatement{
     std::vector<std::string> colNames;
     std::vector<std::string> colValues;
     Condition condition;
-    bool updateAll;
+    bool updateAll{};
 };
 
 struct DeleteStatement: public QueryStatement{
     Condition condition;
-    bool deleteAll;
+    bool deleteAll{};
 };
 
 struct DropStatement:   public QueryStatement{
@@ -182,7 +183,7 @@ void release(std::vector<void*>& data, std::vector<DataType>& type, std::vector<
 }
 
 class Parser{
-    char tableName[MAX_TABLE_NAME_LEN];
+    char tableName[MAX_TABLE_NAME_LEN]{};
 
 public:
     StatementType type;
@@ -204,10 +205,13 @@ public:
         else if(strncmp(inputBuffer.buffer.c_str(), "update", 6) == 0){
             res = parseUpdate(inputBuffer);
         }
-        else if(strncmp(inputBuffer.buffer.c_str(), "delete", 6) == 0){
+        else if(strncmp(inputBuffer.buffer.c_str(), "delete from", 11) == 0){
             res = parseDelete(inputBuffer);
         }
-        else if(strncmp(inputBuffer.buffer.c_str(), "drop", 4) == 0){
+        else if(strncmp(inputBuffer.buffer.c_str(), "delete table", 12) == 0){
+            res = parseDeleteAll(inputBuffer);
+        }
+        else if(strncmp(inputBuffer.buffer.c_str(), "drop table", 10) == 0){
             res = parseDrop(inputBuffer);
         }
         else{
@@ -440,39 +444,34 @@ private:
 
     PrepareResult parseDelete(InputBuffer& inputBuffer){
         // SYNTAX:- delete from <table-name> where <CONDITION>
-        //          delete table <table-name>
         this->type = StatementType::remove;
         const char *ptr = inputBuffer.str();
         char keyword[20];
         int n;
-        if(sscanf(ptr, "delete %20s %s %n", keyword, tableName, &n) != 1){
-            return PrepareResult::noTableName;
-        }
-        ptr += n;
+
+        if(!getTableName(&ptr, "delete from")) return PrepareResult::noTableName;
         auto deleteStatement = std::make_unique<DeleteStatement>();
-        if(strcmp(keyword, "table") == 0){
-            deleteStatement->deleteAll = true;
-            if(sscanf(ptr, " %s %n", keyword, &n) == 1){
-                return PrepareResult::syntaxError;
-            }
-        }
-        else if(strcmp(keyword, "from") == 0){
-            if(sscanf(ptr, " %20s %n", keyword, &n) != 1){
-                return PrepareResult::syntaxError;
-            }
-            ptr += n;
-            if(strcmp(keyword, "where") == 0){
-                deleteStatement->deleteAll = false;
-                auto res = parseCondition(ptr, deleteStatement->condition);
-                if(res != PrepareResult::success) return res;
-            }
-            else{
-                return PrepareResult::syntaxError;
-            }
+
+        if(!parseFormatString(&ptr, keyword, " %20s %n")) return PrepareResult::noCondition;
+        if(strcmp(keyword, "where") == 0){
+            deleteStatement->deleteAll = false;
+            auto res = Parser::parseCondition(ptr, deleteStatement->condition);
+            if(res != PrepareResult::success) return res;
         }
         else{
             return PrepareResult::syntaxError;
         }
+
+        this->statement = std::move(deleteStatement);
+        return PrepareResult::success;
+    }
+
+    PrepareResult parseDeleteAll(InputBuffer& inputBuffer){
+        this->type = StatementType::remove;
+        const char *ptr = inputBuffer.str();
+        if(!getTableName(&ptr, "delete table")) return PrepareResult::noTableName;
+        auto deleteStatement = std::make_unique<DeleteStatement>();
+        deleteStatement->deleteAll = true;
         this->statement = std::move(deleteStatement);
         return PrepareResult::success;
     }
@@ -480,16 +479,8 @@ private:
     PrepareResult parseDrop(InputBuffer& inputBuffer){
         // SYNTAX:- drop table <table-name>
         this->type = StatementType::drop;
-        char rest[3];
-        int n;
-        const char* ptr = inputBuffer.str();
-        if(sscanf(ptr, "drop table %s %n", tableName, &n) != 1){
-            return PrepareResult::noTableName;
-        }
-        ptr += n;
-        if(sscanf(ptr, " %2s ", rest) == 1){
-            return PrepareResult::syntaxError;
-        }
+        const char *ptr = inputBuffer.str();
+        if(!getTableName(&ptr, "drop table")) return PrepareResult::noTableName;
         auto dropStatement = std::make_unique<DropStatement>();
         this->statement = std::move(dropStatement);
         return PrepareResult::success;
@@ -498,63 +489,58 @@ private:
     PrepareResult parseSelect(InputBuffer& inputBuffer){
         // SYNTAX:- select {<col-1>, <col-2>, ...} from <table-name> where <CONDITION>
         //          select * from <table-name> where <CONDITION>
+        //          select {*} from <table-name> where <CONDITION>
         this->type = StatementType::select;
         const char *ptr = inputBuffer.str();
         char keyword[20];
-        int n, col;
+        int n = 0;
         auto selectStatement = std::make_unique<SelectStatement>();
 
         sscanf(ptr, "select %n", &n);
         ptr += n;
-        if(sscanf(ptr, " %1[*] %n", keyword, &n) == 1){
-            ptr += n;
-            selectStatement->selectAllCols = true;
-        }
-        else if(sscanf(ptr, " { %1[*] } %n", keyword, &n) == 1){
+
+        if( (sscanf(ptr, " %1[*] %n", keyword, &n) == 1) ||
+            (sscanf(ptr, " { %1[*] } %n", keyword, &n) == 1)){
             ptr += n;
             selectStatement->selectAllCols = true;
         }
         else{
-            if(sscanf(ptr, " %1[{] %n", keyword, &n) != 1){
-                return PrepareResult::syntaxError;
-            }
-            ptr += n;
+            if(!checkOpeningBrace(&ptr)) return PrepareResult::syntaxError;
             selectStatement->selectAllCols = false;
             std::vector<std::string> colNames;
             char colName[MAX_FIELD_SIZE + 1];
-            while(sscanf(ptr, " %255[^,} ] %n", colName, &n) == 1) {
-                ptr += n;
-                if (!(*ptr == ',' || *ptr == '}')){
+            char colFormatStr[] = " %255[^,} \t\n] %n";
+            while(true){
+                // Get Column Name
+                if (!parseFormatString(&ptr, colName, colFormatStr)){
                     return PrepareResult::syntaxError;
                 }
+
                 colNames.emplace_back(colName);
-                if(*ptr == '}'){
-                    ptr++;
-                    break;
-                }
-                ++ptr;
+                printf("Parsed Column: \"%s\"\n", colName);
+
+                // Get Column Seperator ',' or '}'
+                if (!getSeperator(&ptr, keyword)) return PrepareResult::syntaxError;
+                if (keyword[0] == ',') continue;
+                if (keyword[0] == '}') break;
+                else return PrepareResult::syntaxError;
             }
             selectStatement->colNames = std::move(colNames);
         }
 
-        if(sscanf(ptr, " from %s %n", tableName, &n) != 1){
-            return PrepareResult::noTableName;
-        }
-        ptr += n;
-        if(sscanf(ptr, " %20s %n", keyword, &n) == 1){
-            if(strcmp(keyword, "where") == 0){
-                ptr += n;
-                selectStatement->selectAllRows = false;
-                auto res = parseCondition(ptr, selectStatement->condition);
-                if(res != PrepareResult::success) return res;
-            }
-            else{
-                return PrepareResult::syntaxError;
-            }
-        }
-        else{
+        if(!getTableName(&ptr, " from ")) return PrepareResult::noTableName;
+        if(!parseFormatString(&ptr, keyword, " %20s %n")){
             selectStatement->selectAllRows = true;
         }
+        if(strcmp(keyword, "where") == 0){
+            selectStatement->selectAllRows = false;
+            auto res = parseCondition(ptr, selectStatement->condition);
+            if(res != PrepareResult::success) return res;
+        }
+        else{
+            return PrepareResult::syntaxError;
+        }
+
         this->statement = std::move(selectStatement);
         return PrepareResult::success;
     }
@@ -728,4 +714,16 @@ private:
                     break;
             }
         }
+
+        ptr += n;
+                if (!(*ptr == ',' || *ptr == '}')) {
+                    return PrepareResult::syntaxError;
+                }
+                colNames.emplace_back(colName);
+                if (*ptr == '}') {
+                    ptr++;
+                    break;
+                }
+                ++ptr;
+
  */

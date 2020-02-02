@@ -66,6 +66,10 @@ int main() {
             case PrepareResult::noUpdateData:
                 printf("No Data Provided to Update\n");
                 continue;
+            case PrepareResult::noCondition:
+                printf("Provide Condition To Delete Selected Table using `where` clause.\n"
+                       "To delete all entries use `delete table` instead\n");
+                continue;
         }
 
         switch(Executor::execute(parser)){
