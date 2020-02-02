@@ -273,7 +273,7 @@ private:
     }
 
     PrepareResult parseCreate(InputBuffer& inputBuffer){
-        // SYNTAX:- create table <table-name>(<col-1>:<DATATYPE>, <col-2>:<DATATYPE>, ...)
+        // SYNTAX:- create table <table-name>{<col-1>:<DATATYPE>, <col-2>:<DATATYPE>, ...}
         this->type = StatementType::create;
         const char *ptr = inputBuffer.str();
         std::vector<std::string> colNames;
@@ -286,7 +286,7 @@ private:
         }
         ptr += n;
         int col = 0;
-        while(sscanf(ptr, " %255[^:] %n", name, &n) == 1){
+        while(sscanf(ptr, " %255[^: \t\n] %n", name, &n) == 1){
             ptr += n;
             ++col;
             if(*ptr != ':'){
@@ -626,7 +626,9 @@ private:
     }
 
     static ExecuteResult executeInsert(std::unique_ptr<QueryStatement>& statement, std::shared_ptr<Table>& table){
-//        if(table->numRows >= table->maxRows){
+        auto insertStatement = dynamic_cast<SelectStatement*>(statement.get());
+
+        //        if(table->numRows >= table->maxRows){
 //            return ExecuteResult::tableFull;
 //        }
 //        Row rowToInsert{};

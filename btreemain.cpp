@@ -1,28 +1,18 @@
-#include<iostream>
-#include<fstream>
-#include<strings.h>
+#include <iostream>
+#include <fstream>
+#include <cstring>
 
-using namespace std;
-//#define PRODUCTION
-
-#ifndef PRODUCTION
-#define o2(a,b) cout<<(a)<<" "<<(b)<<endl
-#define o3(a,b,c) cout<<(a)<<" "<<(b)<<" "<<(c)<<endl
-#define o4(a,b,c,d) cout<<(a)<<" "<<(b)<<" "<<(c)<<" "<<(d)<<endl
-#define cl cout<<endl
-#endif
-
+template <typename key_t>
 class RowData{
-    int x;
+    key_t x{};
 
     friend class BPTNode;
     friend class BPTree;
 
 public:
-    RowData():x(0){}
-    RowData(int x_):x(x_){}
+    RowData() = default;
 
-    void setData(int x_){
+    void setData(key_t x_){
         this->x = x_;
     }
 
@@ -43,16 +33,17 @@ public:
     }
 };
 
+template <typename key_t>
 class BPTNode {
 	bool isLeaf;
     int size;
-	RowData* data;
+	RowData<key_t>* data;
 	BPTNode** ptr;
 
     friend class BPTree;
 
 public:
-	BPTNode(int t) {
+	explicit BPTNode(int t) {
 		isLeaf = false;
 		ptr = new BPTNode*[2*t];
 		data = new RowData[2*t-1];
@@ -239,9 +230,9 @@ public:
 			return true;
 		}
 		else {
-			 for(int i=0;i<temp->size;i++) {
-			 	cout<<temp->data[i].x<<" ";
-			 }cl;cl;
+//			 for(int i=0;i<temp->size;i++) {
+//			 	cout<<temp->data[i].x<<" ";
+//			 }cl;cl;
 			for(int i=index;i<temp->size-1;i++) {
 				temp->data[i] = temp->data[i+1];
 			}
@@ -417,7 +408,7 @@ public:
 
 		// Now we are in a leaf node
 		int indexFound = binSearch(temp, keyData);
-		//o3("F", keyData->x, indexFound);
+//		o3("F", keyData->x, indexFound);
 		if(indexFound < temp->size) {
 			if (temp->data[indexFound] == *(keyData)) {
 				return deleteAtLeaf(temp,indexFound);
@@ -449,21 +440,41 @@ public:
 };
 
 
+//int fun(int x){
+//    cout << "FUN INT" << endl;
+//}
+
+//void fun(const char* x){
+//    cout << "FUN1" << endl;
+//}
+
+void fun(std::string x){
+    cout << "FUN2" << endl;
+}
+
+
 int main(){
+//    fun("HELLO");
+//    a.print();
+
 	 BPTree bt(3);
 	 RowData rd;
 	 rd.setData(10);
 	 bt.insert(&rd);
+    bt.bfsTraverse();
 	 rd.setData(20);
 	 bt.insert(&rd);
+    bt.bfsTraverse();
 	 rd.setData(5);
 	 bt.insert(&rd);
+    bt.bfsTraverse();
 	 rd.setData(15);
 	 bt.insert(&rd);
-	 //bt.bfsTraverse();
+    bt.bfsTraverse();
+	 bt.bfsTraverse();
 	 rd.setData(11);
 	 bt.insert(&rd);
-	 //bt.bfsTraverse();
+	 bt.bfsTraverse();
 	 rd.setData(21);
 	 bt.insert(&rd);
 	 bt.bfsTraverse();
