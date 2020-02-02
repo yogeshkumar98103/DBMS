@@ -3,97 +3,94 @@
 #include<strings.h>
 
 using namespace std;
+//#define PRODUCTION
+
+#ifndef PRODUCTION
 #define o2(a,b) cout<<(a)<<" "<<(b)<<endl
 #define o3(a,b,c) cout<<(a)<<" "<<(b)<<" "<<(c)<<endl
 #define o4(a,b,c,d) cout<<(a)<<" "<<(b)<<" "<<(c)<<" "<<(d)<<endl
 #define cl cout<<endl
+#endif
 
+class RowData{
+    int x;
 
-
-class RowData {
-		int x;
-
-		friend class BPTNode;
-		friend class BPTree;
+    friend class BPTNode;
+    friend class BPTree;
 
 public:
+    RowData():x(0){}
+    RowData(int x_):x(x_){}
 
-		RowData() {
-			x = 0;
-		}
+    void setData(int x_){
+        this->x = x_;
+    }
 
-		void setData(int _x) {
-			x = _x;
-		}
+    void displayData() {
+        printf("Data: %d\n", x);
+    }
 
-        void displayData() {
-            cout<<"x";
-        }
+    bool operator < (RowData const &obj) {
+        return x < obj.x;
+    }
 
-		bool operator < (RowData const &obj) {
-			return x < obj.x;
-		}
+    bool operator <= (RowData const &obj) {
+        return x <= obj.x;
+    }
 
-		bool operator <= (RowData const &obj) {
-			return x <= obj.x;
-		}
-
-		bool operator == (RowData const &obj) {
-			return x == obj.x;
-		}
-
+    bool operator == (RowData const &obj) {
+        return x == obj.x;
+    }
 };
 
-
 class BPTNode {
-	bool is_leaf;
+	bool isLeaf;
+    int size;
 	RowData* data;
-	int size;
 	BPTNode** ptr;
 
     friend class BPTree;
 
 public:
 	BPTNode(int t) {
-		is_leaf = false;
+		isLeaf = false;
 		ptr = new BPTNode*[2*t];
 		data = new RowData[2*t-1];
 		size=1;
 
-		for(int i=0;i<=(2*t);i++) {
+		for(int i = 0; i <= (2*t); ++i) {
 			ptr[i] = nullptr;
 		}
-
 	}
 
 	~BPTNode() {
-		cout<<"Deleted"<<endl;
+	    printf("BPTNode Destructor\n");
 		delete[] data;
 		delete[] ptr;
 	}
-
-
 };
-
 
 struct SearchResult {
 	int index; // between t-1 and 2t-1
-	BPTNode* bptnode;
+	BPTNode* bptNode;
 
-	SearchResult() {
+	SearchResult(){
 		index = -1;
-		bptnode = nullptr;
+		bptNode = nullptr;
 	}
 };
 
-
 class BPTree {
-	BPTNode* root;
-	int t;
+    BPTNode* root;
+    int t;
 
-	int binSearch(BPTNode* temp, RowData* keyData) {
-		int l=0, r=temp->size-1, mid, ans=temp->size;
-		while(l<=r) {
+    int binSearch(BPTNode* temp, RowData* keyData) {
+		int l = 0;
+		int r = temp->size-1;
+		int mid;
+		int ans = temp->size;
+
+		while(l <= r) {
             mid = (l+r)/2;
 			if((*keyData) <= temp->data[mid]) {
 				r = mid-1;
@@ -108,167 +105,135 @@ class BPTree {
 
 public:
 
-	BPTree(int _t) {
-		t = _t;
-		root = nullptr;
-	}
+	BPTree(int t_):t(t_), root(nullptr){}
 
-
-
-	SearchResult search(RowData* keyData) {
+	SearchResult search(RowData* keyData){
 		SearchResult searchRes;
 
-		if(root == nullptr) {
-			// Not Found
-
-			return searchRes;
-		}
-		else {
+		if(root != nullptr){
 			BPTNode* temp = root;
 
-			while( !(temp->is_leaf) ) {
+			while(!(temp->isLeaf)) {
 				int indexFound = binSearch(temp, keyData);
 				temp = temp->ptr[indexFound];
-
 			}
 
 			int indexFound = binSearch(temp, keyData);
-
-			if(indexFound == temp->size || (!(temp->data[indexFound] == *(keyData))) ) {
-				// Not Found
-
-				return searchRes;
-			}
-			else {
+			if((indexFound != temp->size) && (temp->data[indexFound] == *keyData)){
 				// Found
-				searchRes.index = indexFound;
-				searchRes.bptnode = temp;
-				return searchRes;
+                searchRes.index = indexFound;
+                searchRes.bptNode = temp;
 			}
-
 		}
+        return searchRes;
 	}
 
-
 	bool insert(RowData* keyData) {
-		if (root == nullptr) {
+		if(root == nullptr) {
 			root = new BPTNode(t);
-			root->data[0] = (*keyData);
-			root->is_leaf = true;
-			// Inserted
+			root->data[0] = *keyData;
+			root->isLeaf = true;
 			return true;
 		}
-		else {
 
-			if(root->size == (2*t-1)) {
-				// If root is full create a new root and split this root
-				BPTNode* newRoot = new BPTNode(t);
-				BPTNode* nBnode = new BPTNode(t);
-				if (root->is_leaf) {
-                    newRoot->is_leaf = true;
-                    nBnode->is_leaf = true;
-				}
-				for(int i=t;i<=(2*t-2);i++) {
-					nBnode->data[i-t] = root->data[i];
-					nBnode->ptr[i-t] = root->ptr[i];
-				}
+        // If root is full create a new root and split this root
+        if(root->size == (2*t-1)) {
+            BPTNode* newRoot = new BPTNode(t);
+            BPTNode* nBnode = new BPTNode(t);
+            if (root->isLeaf) {
+                newRoot->isLeaf = true;
+                nBnode->isLeaf = true;
+            }
+            for(int i = t; i <= 2*t-2; ++i) {
+                nBnode->data[i-t] = root->data[i];
+                nBnode->ptr[i-t] = root->ptr[i];
+            }
 
+            newRoot->size = 1;
+            newRoot->data[0] = root->data[t-1];
+            newRoot->ptr[1]=nBnode;
+            newRoot->ptr[0]=root;
+            nBnode->ptr[t-1]=root->ptr[2*t-1];
+            nBnode->size = t-1;
 
-				newRoot->size = 1;
-				newRoot->data[0] = root->data[t-1];
-				newRoot->ptr[1]=nBnode;
-				newRoot->ptr[0]=root;
-				nBnode->ptr[t-1]=root->ptr[2*t-1];
-				nBnode->size = t-1;
+            if(!(root->isLeaf)) {
+                root->size = t-1;
+                root->ptr[t]=nullptr;
+            }
+            else {
+                root->size = t;
+            }
+            root = newRoot;
+            root->isLeaf = false;
+        }
 
-				if(!(root->is_leaf)) {
-					root->size = t-1;
-					root->ptr[t]=nullptr;
-				}
-				else {
-					root->size = t;
-				}
-				root = newRoot;
-				root->is_leaf = false;
+        BPTNode* temp = root;
+        BPTNode *child;
 
-			}
+        while(!temp->isLeaf) {
+            int indexFound = binSearch(temp, keyData);
+            child = temp->ptr[indexFound];
 
-			BPTNode* temp = root;
-			BPTNode *child;
+            if(child->size < (2*t-1)) {
+                temp = child;
+                continue;
+            }
 
+            // Child is full, split it first and then go down
+            for(int i=temp->size-1;i>=indexFound;i--) {
+                temp->data[i+1] = temp->data[i];
+                temp->ptr[i+2] = temp->ptr[i+1];
+            }
 
-			while( !(temp->is_leaf) ) {
+            temp->data[indexFound] = child->data[t-1];
+            BPTNode* nBnode = new BPTNode(t);
+            nBnode->isLeaf = child->isLeaf;
 
-				int indexFound = binSearch(temp, keyData);
-				child = temp->ptr[indexFound];
+            for(int i=t;i<=(2*t-2);i++) {
+                nBnode->data[i-t] = child->data[i];
+                nBnode->ptr[i-t] = child->ptr[i];
+            }
 
-				if (child->size == (2*t-1)) {
-					// If child is full, split it first and then go down
+            temp->ptr[indexFound+1]=nBnode;
+            nBnode->ptr[t-1]=child->ptr[2*t-1];
+            nBnode->size = t-1;
+            temp->size++;
 
-					for(int i=temp->size-1;i>=indexFound;i--) {
-						temp->data[i+1] = temp->data[i];
-						temp->ptr[i+2] = temp->ptr[i+1];
-					}
-					temp->data[indexFound] = child->data[t-1];
-					BPTNode* nBnode = new BPTNode(t);
-					nBnode->is_leaf = child->is_leaf;
-					for(int i=t;i<=(2*t-2);i++) {
-						nBnode->data[i-t] = child->data[i];
-						nBnode->ptr[i-t] = child->ptr[i];
-					}
-					temp->ptr[indexFound+1]=nBnode;
-					nBnode->ptr[t-1]=child->ptr[2*t-1];
-					nBnode->size = t-1;
-					temp->size++;
-					if(!(child->is_leaf)) {
-						child->size = t-1;
+            if(!(child->isLeaf)) {
+                child->size = t-1;
+            }
+            else {
+                child->size = t;
+            }
 
-					}
-					else {
-						child->size = t;
-					}
-					child->ptr[t]=nullptr;
+            child->ptr[t]=nullptr;
 
-					if((*keyData) <= temp->data[indexFound]) {
-						temp = temp->ptr[indexFound];
-					}
-					else {
-						temp = temp->ptr[indexFound+1];
-					}
-				}
-				else {
-					temp = child;
-				}
+            if((*keyData) <= temp->data[indexFound]) {
+                temp = temp->ptr[indexFound];
+            }
+            else {
+                temp = temp->ptr[indexFound+1];
+            }
+        }
 
-			}
+        int insertAtIndex = 0;
+        for(int i = temp->size-1; i >= 0; --i){
+            if((*keyData) <= temp->data[i]) {
+                temp->data[i+1]=temp->data[i];
+            }
+            else {
+                insertAtIndex=i+1;
+                break;
+            }
+        }
 
-
-			int insertAtIndex = 0;
-			for(int i=temp->size-1;i>=0;i--){
-				if((*keyData) <= temp->data[i]) {
-					temp->data[i+1]=temp->data[i];
-				}
-				else {
-					insertAtIndex=i+1;
-					break;
-				}
-			}
-
-			temp->data[insertAtIndex] = (*keyData);
-			temp->size++;
-
-			// Inserted
-			return true;
-
-
-
-
-		}
+        temp->data[insertAtIndex] = *keyData;
+        temp->size++;
+        return true;
 	}
 
 	bool deleteAtLeaf(BPTNode* temp, int index) {
-
-		if(root->is_leaf && root->size == 1) {
+		if(root->isLeaf && root->size == 1) {
 			root->~BPTNode();
 			root = nullptr;
 			return true;
@@ -311,7 +276,7 @@ public:
 		BPTNode *child;
 
 
-		while( !(temp->is_leaf) ) {
+		while( !(temp->isLeaf) ) {
 
 			int indexFound = binSearch(temp, keyData);
 
@@ -324,7 +289,7 @@ public:
 					// check left sibling of child
 					BPTNode* lsibling = temp->ptr[indexFound-1];
 					if(lsibling->size > t-1) {
-						if(child->is_leaf){
+						if(child->isLeaf){
 							for(int i=child->size-1;i>=0;i--){
 								child->data[i+1]=child->data[i];
 							}
@@ -356,7 +321,7 @@ public:
 
 					BPTNode* rsibling = temp->ptr[indexFound+1];
 					if(rsibling->size > t-1) {
-						if (child->is_leaf) {
+						if (child->isLeaf) {
 							temp->data[indexFound] = rsibling->data[0];
 							child->data[child->size]=temp->data[indexFound];
 							for(int i=0;i<rsibling->size-1;i++){
@@ -473,7 +438,7 @@ public:
 			 	cout<<start->data[i].x<<" ";
 			 }cout<<endl;
 
-			if (!(start->is_leaf)) {
+			if (!(start->isLeaf)) {
 				for(int i=0;i<start->size+1;i++) {
 					bfsTraverseUtil(start->ptr[i]);
 				}
@@ -481,58 +446,53 @@ public:
 
 		}
 	}
-
 };
 
 
 int main(){
-	// BPTree bt(3);
-	// RowData rd;
-	// rd.setData(10);
-	// bt.insert(&rd);
-	// rd.setData(20);
-	// bt.insert(&rd);
-	// rd.setData(5);
-	// bt.insert(&rd);
-	// rd.setData(15);
-	// bt.insert(&rd);
-	// //bt.bfsTraverse();
-	// rd.setData(11);
-	// bt.insert(&rd);
-	// //bt.bfsTraverse();
-	// rd.setData(21);
-	// bt.insert(&rd);
-	// bt.bfsTraverse();
-	// rd.setData(51);
-	// bt.insert(&rd);
-	// bt.bfsTraverse();
-	// rd.setData(17);
-	// bt.insert(&rd);
-	// bt.bfsTraverse();
-	// rd.setData(71);
-	// bt.insert(&rd);
-	// bt.bfsTraverse();
+	 BPTree bt(3);
+	 RowData rd;
+	 rd.setData(10);
+	 bt.insert(&rd);
+	 rd.setData(20);
+	 bt.insert(&rd);
+	 rd.setData(5);
+	 bt.insert(&rd);
+	 rd.setData(15);
+	 bt.insert(&rd);
+	 //bt.bfsTraverse();
+	 rd.setData(11);
+	 bt.insert(&rd);
+	 //bt.bfsTraverse();
+	 rd.setData(21);
+	 bt.insert(&rd);
+	 bt.bfsTraverse();
+	 rd.setData(51);
+	 bt.insert(&rd);
+	 bt.bfsTraverse();
+	 rd.setData(17);
+	 bt.insert(&rd);
+	 bt.bfsTraverse();
+	 rd.setData(71);
+	 bt.insert(&rd);
+	 bt.bfsTraverse();
 
- //    cout<<"Insert done"<<endl;
- //     rd.setData(51);
-	//  SearchResult rs = bt.search(&rd);
-	//  cout<<rs.index<<endl;
+     cout<<"Insert done"<<endl;
+      rd.setData(51);
+	  SearchResult rs = bt.search(&rd);
+	  cout<<rs.index<<endl;
 
-	//  cout<<bt.findAndDelete(&rd)<<endl;
-	//  bt.bfsTraverse();
- //     rd.setData(71);
-	//  cout<<bt.findAndDelete(&rd)<<endl;
-	//  bt.bfsTraverse();
-	//  rd.setData(51);
-	//  cout<<bt.findAndDelete(&rd)<<endl;
-	//  bt.bfsTraverse();
-	//  rd.setData(21);
+	  cout<<bt.findAndDelete(&rd)<<endl;
+	  bt.bfsTraverse();
+      rd.setData(71);
+	  cout<<bt.findAndDelete(&rd)<<endl;
+	  bt.bfsTraverse();
+	  rd.setData(51);
+	  cout<<bt.findAndDelete(&rd)<<endl;
+	  bt.bfsTraverse();
+	  rd.setData(21);
 
-	//  cout<<bt.findAndDelete(&rd)<<endl;
-	//  bt.bfsTraverse();
-
-
-
-
+	  cout<<bt.findAndDelete(&rd)<<endl;
+	  bt.bfsTraverse();
 }
 
