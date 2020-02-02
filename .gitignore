@@ -4,5 +4,5 @@ spec
 TODO.txt
 Input.txt
 .idea
-.exo
-.o
+*.exe
+*.o

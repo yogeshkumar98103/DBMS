@@ -5,6 +5,7 @@
 #include <fstream>
 #include <cstring>
 #include <vector>
+#include <memory>
 
 template <typename key_t>
 class RowData{
@@ -59,7 +60,7 @@ public:
 
 template <typename key_t>
 struct SearchResult {
-    int index; // between branchingFactor-1 and 2t-1
+    int index; // between branchingFactor-1 and 2*branchingFactor-1
     BPTNode<key_t>* node;
 
     SearchResult(){
@@ -321,8 +322,8 @@ private:
             for(int i = child->size-1; i >= 0; --i){
                 child->keys[i+1] = child->keys[i];
             }
-            parent->keys[indexFound-1] = leftSibling->keys[leftSibling->size-1];
             child->keys[0] = parent->keys[indexFound-1];
+            parent->keys[indexFound-1] = leftSibling->keys[leftSibling->size-2];
         }
         else {
             for(int i=child->size-1;i>=0;i--){
@@ -331,8 +332,8 @@ private:
             }
             child->child[1] = std::move(child->child[0]);
             child->keys[0]  = parent->keys[indexFound-1];
-            child->child[0] = std::move(leftSibling->child[leftSibling->size]);
-            parent->keys[indexFound-1] = leftSibling->keys[leftSibling->size-1];
+            child->child[0] = std::move(leftSibling->child[leftSibling->size-1]);
+            parent->keys[indexFound-1] = leftSibling->keys[leftSibling->size-2];
         }
         leftSibling->size--;
         child->size++;
@@ -370,7 +371,7 @@ private:
             Node* leftSibling = std::move(parent->child[indexFound-1]).get();
             leftSibling->child[branchingFactor-1] = std::move(child->child[0]);
 
-            for(int i = 0; i < child->size; ++i) {
+            for(int i = 0; i < child->size; ++i){
                 leftSibling->keys[branchingFactor+i-1] = child->keys[i];
                 leftSibling->child[branchingFactor+i]  = std::move(child->child[i+1]);
             }
