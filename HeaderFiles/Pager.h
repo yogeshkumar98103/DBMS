@@ -25,8 +25,8 @@ class Pager{
 public:
     Pager();
     uint32_t getFileLength() const;
-    void open(const char* fileName);
-    void close(uint32_t numFullPages, uint32_t numAdditionalRows, uint32_t rowSize);
+    bool open(const char* fileName);
+    bool close(uint32_t numFullPages, uint32_t numAdditionalRows, uint32_t rowSize);
     void flush(uint32_t pageNum, uint32_t pageSize);
     char* getPage(uint32_t pageNum);
 };

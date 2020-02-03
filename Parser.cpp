@@ -6,11 +6,11 @@
 #include <cstring>
 #include <cstdlib>
 #include <string>
-#include <sstream>
 #include <vector>
 #include "HeaderFiles/Pager.h"
 #include "HeaderFiles/DataTypes.h"
 #include "HeaderFiles/Table.h"
+#include "HeaderFiles/TableManager.h"
 
 #define MAX_FIELD_SIZE 512
 #define MAX_TABLE_NAME_LEN 50
@@ -592,9 +592,10 @@ class Executor{
 public:
     static ExecuteResult execute(Parser& parser){
         std::shared_ptr<Table> table;
-        auto res = openTable(parser.statement->tableName, table);
-        if(res != ExecuteResult::success){
-            return res;
+        TableManager sharedManager;
+        auto res = sharedManager.open(parser.statement->tableName, table);
+        if(res != TableManagerResult::openedSuccessfully){
+            return ExecuteResult::faliure;
         }
 
         switch(parser.type){

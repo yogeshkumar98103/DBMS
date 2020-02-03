@@ -7,26 +7,27 @@
 //                  TABLE
 // =============================================
 
-Table::Table(const char* filename){
+Table::Table(const std::string& fileName){
     this->pager = std::make_unique<Pager>();
-    this->open(filename);
+    this->open(fileName.c_str());
 }
 
 Table::~Table(){
     this->close();
 }
 
-void Table::open(const char* filename){
-    openedTable = filename;
-    pager->open(filename);
+bool Table::open(const std::string& filename){
+    tableName = filename;
+    if(!pager->open(filename.c_str())) return false;
     this->numRows = pager->getFileLength() / ROW_SIZE;
     printf("Number Of Rows: %d\n",this->numRows);
+    return true;
 }
 
-void Table::close(){
+bool Table::close(){
     uint32_t numFullPages = numRows / rowsPerPage;
     uint32_t numAdditionalRows = numRows % rowsPerPage;
-    pager->close(numFullPages, numAdditionalRows, ROW_SIZE);
+    return pager->close(numFullPages, numAdditionalRows, ROW_SIZE);
 }
 
 Cursor Table::start(){
@@ -41,6 +42,19 @@ Cursor Table::end(){
     cursor.rowNum = numRows;
     cursor.endOfTable = true;
     return cursor;
+}
+
+void Table::createColumns(std::vector<std::string>&& columnNames, std::vector<DataType>&& columnTypes, std::vector<uint32_t>&& columnSize) {
+    this->columnNames = std::move(columnNames);
+    this->columnSize = std::move(columnSize);
+    this->columnTypes = std::move(columnTypes);
+    createColumnIndex();
+}
+
+void Table::createColumnIndex(){
+    for(int index = 0; index < columnNames.size(); ++index){
+        columnIndex[columnNames[index]] = index;
+    }
 }
 
 // =============================================

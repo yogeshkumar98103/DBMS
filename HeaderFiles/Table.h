@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <map>
 #include "Pager.h"
 #include "DataTypes.h"
 //#include "Cursor.h"
@@ -57,18 +58,22 @@ public:
     const uint32_t maxRows = rowsPerPage * TABLE_MAX_PAGES;
     uint32_t numRows = 0;
 
-    std::string openedTable;
-    std::unique_ptr<char[]> pages[TABLE_MAX_PAGES];
+    std::string tableName;
     std::unique_ptr<Pager> pager;
+
     std::vector<std::string> columnNames;
     std::vector<DataType> columnTypes;
     std::vector<uint32_t> columnSize;
 
+    std::map<std::string, int> columnIndex;
+
     Table() = default;
     ~Table();
-    explicit Table(const char* filename);
-    void open(const char* filename);
-    void close();
+    explicit Table(const std::string& fileName);
+    bool open(const std::string& filename);
+    bool close();
+    void createColumns(std::vector<std::string>&& columnNames, std::vector<DataType>&& columnTypes, std::vector<uint32_t>&& columnSize);
+    void createColumnIndex();
 
     Cursor start();
     Cursor end();

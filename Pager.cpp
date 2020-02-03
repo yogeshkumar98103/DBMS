@@ -13,13 +13,13 @@ uint32_t Pager::getFileLength() const{
     return this->fileLength;
 };
 
-void Pager::open(const char* fileName){
+bool Pager::open(const char* fileName){
     int openFlags = O_RDWR | O_CREAT;
     mode_t filePerms = S_IWUSR | S_IRUSR;
     int fd = ::open(fileName, openFlags, filePerms);
     if (fd == -1) {
         printf("Unable to open file\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
     off_t fileLength = lseek(fd, 0, SEEK_END);
     this->fileDescriptor = fd;
@@ -28,9 +28,10 @@ void Pager::open(const char* fileName){
     for(uint32_t i = 0; i < TABLE_MAX_PAGES; i++){
         this->pages[i] = nullptr;
     }
+    return true;
 }
 
-void Pager::close(uint32_t numFullPages, uint32_t numAdditionalRows, uint32_t rowSize){
+bool Pager::close(uint32_t numFullPages, uint32_t numAdditionalRows, uint32_t rowSize){
     for(uint32_t i = 0; i < numFullPages; i++) {
         if(pages[i] == nullptr)continue;
         flush(i, PAGE_SIZE);
@@ -49,8 +50,7 @@ void Pager::close(uint32_t numFullPages, uint32_t numAdditionalRows, uint32_t ro
 
     int result = ::close(fileDescriptor);
     if(result == -1){
-        printf("Error closing db file.\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     for(uint32_t i = 0; i < TABLE_MAX_PAGES; i++){
@@ -59,6 +59,7 @@ void Pager::close(uint32_t numFullPages, uint32_t numAdditionalRows, uint32_t ro
             pages[i] = nullptr;
         }
     }
+    return true;
 }
 
 void Pager::flush(uint32_t pageNum, uint32_t pageSize){
