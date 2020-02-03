@@ -7,34 +7,6 @@
 #include <vector>
 
 template <typename key_t>
-class RowData{
-    key_t x{};
-
-public:
-    RowData() = default;
-
-    void setData(key_t x_){
-        this->x = x_;
-    }
-
-    void displayData() {
-        printf("Data: %d\n", x);
-    }
-
-    bool operator < (RowData const &obj) {
-        return x < obj.x;
-    }
-
-    bool operator <= (RowData const &obj) {
-        return x <= obj.x;
-    }
-
-    bool operator == (RowData const &obj) {
-        return x == obj.x;
-    }
-};
-
-template <typename key_t>
 class BPTNode{
     using Node = BPTNode<key_t>;
     bool isLeaf;
