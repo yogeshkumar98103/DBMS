@@ -189,6 +189,42 @@ public:
         printf("\n");
     }
 
+    void smallerThan(const key_t& key) {
+        auto searchRes = search(key);
+        if(searchRes.index>0) {
+            searchRes.index--;
+        }
+        else {
+            if(searchRes.node->leftSibling_){
+                searchRes.node = searchRes.node->leftSibling_;
+                searchRes.index = searchRes.node->size-1;
+            }
+            else {
+                return;
+            }
+        }
+        iterateLeftLeaf(searchRes.node, searchRes.index);
+        printf("\n");
+    }
+
+    void greaterThan(const key_t& key) {
+        auto searchRes = search(key);
+        if(searchRes.index < searchRes.node->size-1) {
+            searchRes.index++;
+        }
+        else {
+            if(searchRes.node->rightSibling_){
+                searchRes.node = searchRes.node->rightSibling_;
+                searchRes.index = 0;
+            }
+            else {
+                return;
+            }
+        }
+        iterateRightLeaf(searchRes.node, searchRes.index);
+        printf("\n");
+    }
+
 
 
 private:
@@ -513,8 +549,8 @@ void BPTreeTest(){
     // std::cout << searchRes.index << std::endl;
     // bt.iterateRightLeaf(searchRes.node, searchRes.index);
 
-    bt.smallerThanEquals(11);
-    bt.greaterThanEquals(11);
+    bt.smallerThan(11);
+    bt.greaterThan(11);
 
      bt.bfsTraverse();
      std::cout << bt.remove(10) << std::endl;
@@ -522,8 +558,8 @@ void BPTreeTest(){
      std::cout << bt.remove(5) << std::endl;
      bt.bfsTraverse();
 
-    bt.smallerThanEquals(11);
-    bt.greaterThanEquals(17);
+    bt.smallerThan(11);
+    bt.greaterThan(17);
 }
 
 int main(){
