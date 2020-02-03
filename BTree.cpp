@@ -369,20 +369,39 @@ private:
         int maxSize = 2 * branchingFactor - 1;
         if(indexFound > 0){
             Node* leftSibling = std::move(parent->child[indexFound-1]).get();
-            leftSibling->child[branchingFactor-1] = std::move(child->child[0]);
 
-            for(int i = 0; i < child->size; ++i){
-                leftSibling->keys[branchingFactor+i-1] = child->keys[i];
-                leftSibling->child[branchingFactor+i]  = std::move(child->child[i+1]);
+            if(leftSibling->isLeaf){
+                // leftSibling->child[branchingFactor-1] = std::move(child->child[0]);
+
+                for(int i = 0; i < child->size; ++i){
+                    leftSibling->keys[branchingFactor+i-1] = child->keys[i];
+                    // leftSibling->child[branchingFactor+i]  = std::move(child->child[i+1]);
+                }
+
+                for(int i = indexFound-1; i < parent->size-1; ++i){
+                    parent->keys[i]    = parent->keys[i+1];
+                    parent->child[i+1] = std::move(parent->child[i+2]);
+                }
+                leftSibling->size = maxSize - 1;
+
             }
+            else{
+                leftSibling->keys[branchingFactor-1] = parent->keys[indexFound-1];
+                leftSibling->child[branchingFactor] = std::move(child->child[0]);
 
-            for(int i = indexFound-1; i < parent->size-1; ++i){
-                parent->keys[i]    = parent->keys[i+1];
-                parent->child[i+1] = std::move(parent->child[i+2]);
+                for(int i = 0; i < child->size; ++i){
+                    leftSibling->keys[branchingFactor+i] = child->keys[i];
+                    leftSibling->child[branchingFactor+i+1]  = std::move(child->child[i+1]);
+                }
+
+                for(int i = indexFound-1; i < parent->size-1; ++i){
+                    parent->keys[i]    = parent->keys[i+1];
+                    parent->child[i+1] = std::move(parent->child[i+2]);
+                }
+                leftSibling->size = maxSize;
             }
 
             parent->size--;
-            leftSibling->size = maxSize - 1;
             if(parent->size == 0){
                 // happens only when parent is root
                 this->root = std::move(parent->child[indexFound-1]);
@@ -391,18 +410,38 @@ private:
         }
         else if(indexFound < parent->size){
             auto rightSibling = std::move(parent->child[indexFound+1]);
-            child->child[branchingFactor-1] = std::move(rightSibling->child[0]);
 
-            for(int i = 0; i < rightSibling->size; ++i){
-                child->keys[branchingFactor+i-1] = rightSibling->keys[i];
-                child->child[branchingFactor+i]  = std::move(rightSibling->child[i+1]);
-            }
-            child->size = maxSize - 1;
+            if(rightSibling->isLeaf){
+                // child->child[branchingFactor-1] = std::move(rightSibling->child[0]);
 
-            for(int i = indexFound; i < parent->size-1; ++i){
-                parent->keys[i]    = parent->keys[i+1];
-                parent->child[i+1] = std::move(parent->child[i+2]);
+                for(int i = 0; i < rightSibling->size; ++i){
+                    child->keys[branchingFactor+i-1] = rightSibling->keys[i];
+                    // child->child[branchingFactor+i]  = std::move(rightSibling->child[i+1]);
+                }
+                child->size = maxSize - 1;
+
+                for(int i = indexFound; i < parent->size-1; ++i){
+                    parent->keys[i]    = parent->keys[i+1];
+                    parent->child[i+1] = std::move(parent->child[i+2]);
+                }
             }
+            else {
+                child->keys[branchingFactor-1] = parent->keys[indexFound];
+                child->child[branchingFactor] = std::move(rightSibling->child[0]);
+
+                for(int i = 0; i < rightSibling->size; ++i){
+                    child->keys[branchingFactor+i] = rightSibling->keys[i];
+                    child->child[branchingFactor+i+1]  = std::move(rightSibling->child[i+1]);
+                }
+                child->size = maxSize - 1;
+
+                for(int i = indexFound; i < parent->size-1; ++i){
+                    parent->keys[i]    = parent->keys[i+1];
+                    parent->child[i+1] = std::move(parent->child[i+2]);
+                }
+            }
+
+
             parent->size--;
             if(parent->size == 0) {
                 // happens only when current is root
@@ -443,7 +482,8 @@ void BPTreeTest(){
     bt.bfsTraverse();
     std::cout << bt.remove(11) << std::endl;
     bt.bfsTraverse();
-
+    bt.insert(11);
+    bt.bfsTraverse();
     auto searchRes = bt.search(11);
     std::cout << searchRes.node << std::endl;
     std::cout << searchRes.index << std::endl;
