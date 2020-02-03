@@ -177,6 +177,56 @@ public:
         std::cout << std::endl;
     }
 
+    void greaterThanEquals(const key_t& key) {
+        auto searchRes = search(key);
+        iterateRightLeaf(searchRes.node, searchRes.index);
+        printf("\n");
+    }
+
+    void smallerThanEquals(const key_t& key) {
+        auto searchRes = search(key);
+        iterateLeftLeaf(searchRes.node, searchRes.index);
+        printf("\n");
+    }
+
+    void smallerThan(const key_t& key) {
+        auto searchRes = search(key);
+        if(searchRes.index>0) {
+            searchRes.index--;
+        }
+        else {
+            if(searchRes.node->leftSibling_){
+                searchRes.node = searchRes.node->leftSibling_;
+                searchRes.index = searchRes.node->size-1;
+            }
+            else {
+                return;
+            }
+        }
+        iterateLeftLeaf(searchRes.node, searchRes.index);
+        printf("\n");
+    }
+
+    void greaterThan(const key_t& key) {
+        auto searchRes = search(key);
+        if(searchRes.index < searchRes.node->size-1) {
+            searchRes.index++;
+        }
+        else {
+            if(searchRes.node->rightSibling_){
+                searchRes.node = searchRes.node->rightSibling_;
+                searchRes.index = 0;
+            }
+            else {
+                return;
+            }
+        }
+        iterateRightLeaf(searchRes.node, searchRes.index);
+        printf("\n");
+    }
+
+
+
 private:
     // MARK:- HELPER FUNCTIONS
     int binarySearch(Node* node, const key_t& key) {
@@ -431,6 +481,28 @@ private:
             parent = child;
         }
     }
+
+    void iterateLeftLeaf(Node* node, int startIndex){
+        while(node!=nullptr){
+            for(int i=startIndex;i>=0;i--){
+                printf("%d ", node->keys[i]);
+            }
+            node = node->leftSibling_;
+            if(node)
+            startIndex = node->size-1;
+        }
+    }
+
+    void iterateRightLeaf(Node* node, int startIndex){
+        while(node!=nullptr){
+            for(int i=startIndex;i<node->size;i++){
+                printf("%d ", node->keys[i]);
+            }
+            node = node->rightSibling_;
+            startIndex=0;
+        }
+    }
+
 };
 
 void BPTreeTest(){
@@ -453,26 +525,41 @@ void BPTreeTest(){
     bt.bfsTraverse();
     bt.insert(71);
     bt.bfsTraverse();
+//    bt.insert(71);
+//    bt.bfsTraverse();
+//    bt.insert(11);
+//    bt.bfsTraverse();
+//    bt.insert(10);
+//    bt.bfsTraverse();
 
     std::cout << "Insert done" << std::endl;
-    // std::cout << bt.remove(71) << std::endl;
-    // bt.bfsTraverse();
-    // std::cout << bt.remove(21) << std::endl;
-    // bt.bfsTraverse();
-    // std::cout << bt.remove(51) << std::endl;
-    // bt.bfsTraverse();
-    // std::cout << bt.remove(11) << std::endl;
-    // bt.bfsTraverse();
-    // bt.insert(11);
-    // bt.bfsTraverse();
+
+     std::cout << bt.remove(71) << std::endl;
+     bt.bfsTraverse();
+     std::cout << bt.remove(21) << std::endl;
+     bt.bfsTraverse();
+     std::cout << bt.remove(51) << std::endl;
+     bt.bfsTraverse();
+     std::cout << bt.remove(11) << std::endl;
+     bt.bfsTraverse();
+     bt.insert(11);
+     bt.bfsTraverse();
     // auto searchRes = bt.search(11);
     // std::cout << searchRes.node << std::endl;
     // std::cout << searchRes.index << std::endl;
-    // bt.bfsTraverse();
-    // std::cout << bt.remove(10) << std::endl;
-    // bt.bfsTraverse();
-    // std::cout << bt.remove(5) << std::endl;
-    // bt.bfsTraverse();
+    // bt.iterateRightLeaf(searchRes.node, searchRes.index);
+
+    bt.smallerThan(11);
+    bt.greaterThan(11);
+
+     bt.bfsTraverse();
+     std::cout << bt.remove(10) << std::endl;
+     bt.bfsTraverse();
+     std::cout << bt.remove(5) << std::endl;
+     bt.bfsTraverse();
+
+    bt.smallerThan(11);
+    bt.greaterThan(17);
 }
 
 int main(){

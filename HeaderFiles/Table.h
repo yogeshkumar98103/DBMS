@@ -11,6 +11,8 @@
 #include <map>
 #include "Pager.h"
 #include "DataTypes.h"
+#include <cstdlib>
+#include <cstdio>
 //#include "Cursor.h"
 
 #define COLUMN_USERNAME_SIZE 32
