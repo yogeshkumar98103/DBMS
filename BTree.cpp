@@ -42,12 +42,14 @@ class BPTNode{
     int size;
     key_t* keys;
     std::unique_ptr<Node>* child;
+    std::unique_ptr<Node> leftSibling_;
+    std::unique_ptr<Node> rightSibling_;
 
     template <typename o_key_t>
     friend class BPTree;
 
 public:
-    explicit BPTNode(int branchingFactor):isLeaf(false),size(1){
+    explicit BPTNode(int branchingFactor):isLeaf(false),size(1),leftSibling_(nullptr),rightSibling_(nullptr){
         keys = new key_t[(2 * branchingFactor - 1)];
         child = new std::unique_ptr<Node>[2 * branchingFactor];
     }
@@ -247,6 +249,9 @@ private:
         newNode->size     = branchingFactor - 1;
         newNode->child[branchingFactor-1] = std::move(root->child[maxSize]);
 
+        root->rightSibling_ = std::move(newNode);
+        newNode->leftSibling_ = std::move(root);
+
         if(!(root->isLeaf)){
             root->size = branchingFactor - 1;
         }
@@ -278,6 +283,9 @@ private:
             newSibling->child[i-branchingFactor] = std::move(child->child[i]);
         }
         newSibling->child[branchingFactor-1] = std::move(child->child[maxSize]);
+
+        child->rightSibling_ = std::move(newSibling);
+        newSibling->leftSibling_ = child; // IDHAR DIKKAT HAI
 
         newSibling->size = branchingFactor-1;
         parent->size++;
@@ -370,8 +378,11 @@ private:
         if(indexFound > 0){
             Node* leftSibling = std::move(parent->child[indexFound-1]).get();
 
+            leftSibling->rightSibling_ =  child->rightSibling_;
+            if(leftSibling->rightSibling_) {
+                leftSibling->rightSibling_->leftSibling_ = leftSibling;
+            }
             if(leftSibling->isLeaf){
-
                 for(int i = 0; i < child->size; ++i){
                     leftSibling->keys[branchingFactor+i-1] = child->keys[i];
                 }
@@ -408,7 +419,10 @@ private:
         }
         else if(indexFound < parent->size){
             auto rightSibling = std::move(parent->child[indexFound+1]);
-
+            child->rightSibling_ = rightSibling->rightSibling_;
+            if(child->rightSibling_) {
+                child->rightSibling_->leftSibling_ = child;
+            }
             if(rightSibling->isLeaf){
 
                 for(int i = 0; i < rightSibling->size; ++i){
@@ -470,24 +484,24 @@ void BPTreeTest(){
     bt.bfsTraverse();
 
     std::cout << "Insert done" << std::endl;
-    std::cout << bt.remove(71) << std::endl;
-    bt.bfsTraverse();
-    std::cout << bt.remove(21) << std::endl;
-    bt.bfsTraverse();
-    std::cout << bt.remove(51) << std::endl;
-    bt.bfsTraverse();
-    std::cout << bt.remove(11) << std::endl;
-    bt.bfsTraverse();
-    bt.insert(11);
-    bt.bfsTraverse();
-    auto searchRes = bt.search(11);
-    std::cout << searchRes.node << std::endl;
-    std::cout << searchRes.index << std::endl;
-    bt.bfsTraverse();
-    std::cout << bt.remove(10) << std::endl;
-    bt.bfsTraverse();
-    std::cout << bt.remove(5) << std::endl;
-    bt.bfsTraverse();
+    // std::cout << bt.remove(71) << std::endl;
+    // bt.bfsTraverse();
+    // std::cout << bt.remove(21) << std::endl;
+    // bt.bfsTraverse();
+    // std::cout << bt.remove(51) << std::endl;
+    // bt.bfsTraverse();
+    // std::cout << bt.remove(11) << std::endl;
+    // bt.bfsTraverse();
+    // bt.insert(11);
+    // bt.bfsTraverse();
+    // auto searchRes = bt.search(11);
+    // std::cout << searchRes.node << std::endl;
+    // std::cout << searchRes.index << std::endl;
+    // bt.bfsTraverse();
+    // std::cout << bt.remove(10) << std::endl;
+    // bt.bfsTraverse();
+    // std::cout << bt.remove(5) << std::endl;
+    // bt.bfsTraverse();
 }
 
 int main(){
