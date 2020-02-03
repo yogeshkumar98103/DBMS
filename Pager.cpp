@@ -24,10 +24,6 @@ void Pager::open(const char* fileName){
     off_t fileLength = lseek(fd, 0, SEEK_END);
     this->fileDescriptor = fd;
     this->fileLength = static_cast<uint32_t>(fileLength);
-
-    for(uint32_t i = 0; i < TABLE_MAX_PAGES; i++){
-        this->pages[i] = nullptr;
-    }
 }
 
 void Pager::close(uint32_t numFullPages, uint32_t numAdditionalRows, uint32_t rowSize){
@@ -78,26 +74,73 @@ void Pager::flush(uint32_t pageNum, uint32_t pageSize){
     }
 }
 
-char* Pager::getPage(uint32_t pageNum){
-    if(pageNum > TABLE_MAX_PAGES){
-        printf("Tried to fetch page number out of bounds. %d > %d\n", pageNum, TABLE_MAX_PAGES);
-        exit(EXIT_FAILURE);
-    }
-    if(pages[pageNum] == nullptr){
+/*
+ * This return the asked page from opened file
+ * You have to manually look for required table row or other information in the logic that calls this function.
+ * pageNum is 0 indexed
+ */
+char* Pager::readPage(uint32_t pageNum){
+    if(pages.find(pageNum) == pages.end()){
         // Cache miss. Allocate memory and load from file.
         pages[pageNum] = std::make_unique<char[]>(PAGE_SIZE);
+        this->fileLength = static_cast<uint32_t>(lseek(fileDescriptor, 0, SEEK_END));
+        this->maxPages = this->fileLength / PAGE_SIZE;
+        if(fileLength % PAGE_SIZE) this->maxPages += 1;
 
-        uint32_t numPages = fileLength / PAGE_SIZE;
-        if(fileLength % PAGE_SIZE) numPages += 1;
-
-        if(pageNum <= numPages){
-            lseek(fileDescriptor, pageNum * PAGE_SIZE, SEEK_SET);
-            ssize_t bytesRead = read(fileDescriptor, pages[pageNum].get(), PAGE_SIZE);
-            if(bytesRead == -1){
-                printf("Error reading file: %d\n", errno);
-                exit(EXIT_FAILURE);
-            }
+        if(pageNum >= maxPages){
+            printf("Tried to fetch page number out of bounds. %d > %d\n", pageNum, maxPages);
+            exit(EXIT_FAILURE);
         }
+
+        lseek(fileDescriptor, pageNum * PAGE_SIZE, SEEK_SET);
+        ssize_t bytesRead = read(fileDescriptor, pages[pageNum].get(), PAGE_SIZE);
+        if(bytesRead == -1){
+            printf("Error reading file: %d\n", errno);
+            pages.erase(pageNum);
+            exit(EXIT_FAILURE);
+        }
+        if(pageQueue.size() >= pageLimit){
+            // Remove the page that was used earliest
+            pageQueue.push(pageNum);
+            int pageNumToRemove = pageQueue.front();
+            pageQueue.pop();
+            pages.erase(pageNumToRemove);
+        }
+    }
+    return pages[pageNum].get();
+}
+
+bool Pager::writePage(char* page, uint32_t pageNum){
+    if(pages.find(pageNum) == pages.end()){
+        // Cache miss. Allocate memory and load from file.
+        printf("Tried To write page which is not read: %d\n", errno);
+        pages.erase(pageNum);
+        exit(EXIT_FAILURE);
+    }
+
+    pages[pageNum] = std::make_unique<char[]>(PAGE_SIZE);
+    this->fileLength = static_cast<uint32_t>(lseek(fileDescriptor, 0, SEEK_END));
+    this->maxPages = this->fileLength / PAGE_SIZE;
+    if(fileLength % PAGE_SIZE) this->maxPages += 1;
+
+    if(pageNum >= maxPages){
+        printf("Tried to fetch page number out of bounds. %d > %d\n", pageNum, maxPages);
+        exit(EXIT_FAILURE);
+    }
+
+    lseek(fileDescriptor, pageNum * PAGE_SIZE, SEEK_SET);
+    ssize_t bytesRead = read(fileDescriptor, pages[pageNum].get(), PAGE_SIZE);
+    if(bytesRead == -1){
+        printf("Error reading file: %d\n", errno);
+        pages.erase(pageNum);
+        exit(EXIT_FAILURE);
+    }
+    if(pageQueue.size() >= pageLimit){
+        // Remove the page that was used earliest
+        pageQueue.push(pageNum);
+        int pageNumToRemove = pageQueue.front();
+        pageQueue.pop();
+        pages.erase(pageNumToRemove);
     }
     return pages[pageNum].get();
 }

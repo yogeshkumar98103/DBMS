@@ -10,6 +10,8 @@
 #include <vector>
 #include "Pager.h"
 #include "DataTypes.h"
+#include <cstdlib>
+#include <cstdio>
 //#include "Cursor.h"
 
 #define COLUMN_USERNAME_SIZE 32
@@ -58,7 +60,6 @@ public:
     uint32_t numRows = 0;
 
     std::string openedTable;
-    std::unique_ptr<char[]> pages[TABLE_MAX_PAGES];
     std::unique_ptr<Pager> pager;
     std::vector<std::string> columnNames;
     std::vector<DataType> columnTypes;

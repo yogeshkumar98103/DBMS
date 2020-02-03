@@ -628,14 +628,14 @@ private:
     static ExecuteResult executeInsert(std::unique_ptr<QueryStatement>& statement, std::shared_ptr<Table>& table){
         auto insertStatement = dynamic_cast<SelectStatement*>(statement.get());
 
-        //        if(table->numRows >= table->maxRows){
-//            return ExecuteResult::tableFull;
-//        }
-//        Row rowToInsert{};
+        if(table->numRows >= table->maxRows){
+            return ExecuteResult::tableFull;
+        }
+        Row rowToInsert{};
 //        // TODO: Insert data in rowToInsert from data in statement
-//        auto insert = dynamic_cast<InsertStatement*>(statement.get());
-//        rowToInsert.serialize(table->end().value());
-//        table->numRows += 1;
+        auto insert = dynamic_cast<InsertStatement*>(statement.get());
+        rowToInsert.serialize(table->end().value());
+        table->numRows += 1;
         return ExecuteResult::faliure;
     }
 
@@ -655,6 +655,8 @@ private:
     }
 
     static ExecuteResult executeCreate(std::unique_ptr<QueryStatement>& statement, std::shared_ptr<Table>& table) {
+        auto createStatement = dynamic_cast<CreateStatement*>(statement.get());
+        TableManager
         return ExecuteResult::faliure;
     }
 

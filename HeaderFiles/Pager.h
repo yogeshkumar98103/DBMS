@@ -11,16 +11,20 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <cerrno>
 #include <memory>
+#include <unordered_map>
+#include <queue>
 
-#define TABLE_MAX_PAGES 100
 const uint32_t PAGE_SIZE = 4096;
 
 class Pager{
-    int fileDescriptor;
-    uint32_t fileLength;
-    std::unique_ptr<char[]> pages[TABLE_MAX_PAGES];
+    static const int pageLimit = 20;    // Maximum number of pages that can be stored at any time
+    int fileDescriptor;                 // File descriptor returned by open system call
+    uint32_t fileLength;                // Length of file pointed by fileDescriptor
+    int32_t maxPages;                   // Maximum number of pages this file has
+    std::unordered_map<int32_t, std::unique_ptr<char[]>> pages;
+    std::queue<int32_t> pageQueue;
 
 public:
     Pager();
@@ -28,7 +32,9 @@ public:
     void open(const char* fileName);
     void close(uint32_t numFullPages, uint32_t numAdditionalRows, uint32_t rowSize);
     void flush(uint32_t pageNum, uint32_t pageSize);
-    char* getPage(uint32_t pageNum);
+    char* readPage(uint32_t pageNum);
+
+    bool writePage(uint32_t pageNum);
 };
 
 #endif //DBMS_PAGER_H
