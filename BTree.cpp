@@ -14,8 +14,8 @@ class BPTNode{
     int size;
     key_t* keys;
     std::unique_ptr<Node>* child;
-    std::unique_ptr<Node> leftSibling_;
-    std::unique_ptr<Node> rightSibling_;
+    Node* leftSibling_;
+    Node* rightSibling_;
 
     template <typename o_key_t>
     friend class BPTree;
@@ -221,8 +221,8 @@ private:
         newNode->size     = branchingFactor - 1;
         newNode->child[branchingFactor-1] = std::move(root->child[maxSize]);
 
-        root->rightSibling_ = std::move(newNode);
-        newNode->leftSibling_ = std::move(root);
+        root->rightSibling_ = newNode.get();
+        newNode->leftSibling_ = root.get();
 
         if(!(root->isLeaf)){
             root->size = branchingFactor - 1;
@@ -261,8 +261,8 @@ private:
         child->size = branchingFactor;
         if(!child->isLeaf) --(child->size);
 
-        newSibling->leftSibling_ = std::move(parent->child[indexFound]);
-        child->rightSibling_ = std::move(newSibling);
+        newSibling->leftSibling_ = parent->child[indexFound].get();
+        child->rightSibling_ = newSibling.get();
         parent->child[indexFound+1] = std::move(newSibling);
     }
 
