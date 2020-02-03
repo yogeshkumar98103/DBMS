@@ -1,7 +1,3 @@
-//
-// Created by Yogesh Kumar on 2020-01-31.
-//
-
 #ifndef DBMS_PAGER_H
 #define DBMS_PAGER_H
 
@@ -18,23 +14,40 @@
 
 const uint32_t PAGE_SIZE = 4096;
 
+struct Page{
+    const char *buffer;
+    bool hasUncommitedChanges;
+
+    Page(){
+        buffer = new char[PAGE_SIZE];
+        hasUncommitedChanges = false;
+        printf("Page Created\n");
+    }
+
+    ~Page(){
+        delete[] buffer;
+        printf("Page Destructed\n");
+    }
+};
+
 class Pager{
     static const int pageLimit = 20;    // Maximum number of pages that can be stored at any time
     int fileDescriptor;                 // File descriptor returned by open system call
     uint32_t fileLength;                // Length of file pointed by fileDescriptor
     int32_t maxPages;                   // Maximum number of pages this file has
-    std::unordered_map<int32_t, std::unique_ptr<char[]>> pages;
+    std::unordered_map<int32_t, std::unique_ptr<Page>> pages;
     std::queue<int32_t> pageQueue;
 
-public:
-    Pager();
-    uint32_t getFileLength() const;
     bool open(const char* fileName);
-    bool close(uint32_t numFullPages, uint32_t numAdditionalRows, uint32_t rowSize);
-    void flush(uint32_t pageNum, uint32_t pageSize);
-    char* readPage(uint32_t pageNum);
 
-    bool writePage(uint32_t pageNum);
+public:
+    explicit Pager(const char* fileName);
+    ~Pager();
+
+    uint32_t getFileLength() const;
+    bool close();
+    bool flush(uint32_t pageNum);
+    Page* read(uint32_t pageNum);
 };
 
 #endif //DBMS_PAGER_H

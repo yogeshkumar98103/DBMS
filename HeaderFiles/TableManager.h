@@ -27,18 +27,17 @@ enum class TableFileType{
 };
 
 class TableManager{
-    std::unordered_map<std::string, std::shared_ptr<Table>> tableMap;
+    static std::unordered_map<std::string, std::shared_ptr<Table>> tableMap;
 
 public:
-//    static TableManager shared;
 
-    TableManagerResult open(const std::string& tableName, std::shared_ptr<Table>& table);
+    static TableManagerResult open(const std::string& tableName, std::shared_ptr<Table>& table);
 
-    TableManagerResult create(const std::string& tableName, std::shared_ptr<Table>& table);
+    static TableManagerResult create(const std::string& tableName, std::shared_ptr<Table>& table);
 
-    TableManagerResult drop(const std::string& tableName);
+    static TableManagerResult drop(const std::string& tableName);
 
-    TableManagerResult close(const std::string& tableName);
+    static TableManagerResult close(const std::string& tableName);
 
     static std::string getFileName(const std::string& tableName, TableFileType type);
 };
