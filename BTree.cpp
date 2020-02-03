@@ -256,14 +256,13 @@ private:
         }
         newSibling->child[branchingFactor-1] = std::move(child->child[maxSize]);
 
-        child->rightSibling_ = std::move(newSibling);
-        newSibling->leftSibling_ = child; // IDHAR DIKKAT HAI
-
         newSibling->size = branchingFactor-1;
         parent->size++;
         child->size = branchingFactor;
         if(!child->isLeaf) --(child->size);
 
+        newSibling->leftSibling_ = std::move(parent->child[indexFound]);
+        child->rightSibling_ = std::move(newSibling);
         parent->child[indexFound+1] = std::move(newSibling);
     }
 
