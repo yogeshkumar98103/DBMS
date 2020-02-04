@@ -4,11 +4,22 @@
 #include<ncurses.h>
 #include "ComandHistory.cpp"
 
+void sigintHandler(int sig_num)
+{
+    signal(SIGINT, sigintHandler);
+    /*
+        Yeh Function run hoga 
+    */
+    printf("\n Cannot be terminated using Ctrl+C \n");
+    fflush(stdout);
+}
+
 int main() {
     // InputBuffer inputBuffer;
     // Parser parser;
     // Executor executor(".");
     // ComandHistory commandHistory(20);
+    signal(SIGINT, sigintHandler);
     CommandInput commandInput;
     int c;
     initscr();
