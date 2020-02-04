@@ -7,7 +7,6 @@
 
 TableManager::TableManager(std::string baseURL_):baseURL(std::move(baseURL_)){
     // Create Directory if it doesn't exist
-//    auto res = mkdir(baseURL.c_str(), 0777);
     if(!std::filesystem::exists(baseURL)){
         if(!std::filesystem::create_directory(baseURL)){
             printf("Failed to open Database\n");
@@ -71,7 +70,10 @@ TableManagerResult TableManager::drop(const std::string& tableName){
     if(res != TableManagerResult::openedSuccessfully){
         return res;
     }
-    // if(table.drop()) return TableManagerResult::droppingFaliure;
+    int removeRes = std::remove(getFileName(tableName, TableFileType::baseTable).c_str());
+    if(removeRes != 0){
+        return TableManagerResult::droppingFaliure;
+    }
     return TableManagerResult::droppedSuccessfully;
 }
 
