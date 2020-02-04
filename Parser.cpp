@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
-#include "HeaderFiles/Pager.h"
 #include "HeaderFiles/DataTypes.h"
 #include "HeaderFiles/Table.h"
 #include "HeaderFiles/TableManager.h"
@@ -590,57 +589,58 @@ private:
 
 class Executor{
 public:
-    static ExecuteResult execute(Parser& parser){
-        std::shared_ptr<Table> table;
-        TableManager sharedManager;
-        auto res = sharedManager.open(parser.statement->tableName, table);
-        if(res != TableManagerResult::openedSuccessfully){
-            return ExecuteResult::faliure;
-        }
+    std::unique_ptr<TableManager> sharedManager;
+    explicit Executor(const std::string& baseURL){
+        sharedManager = std::make_unique<TableManager>(baseURL);
+    }
 
+    ExecuteResult execute(Parser& parser){
         switch(parser.type){
             case StatementType::insert:
-                return executeInsert(parser.statement, table);
+                return executeInsert(parser.statement);
                 break;
             case StatementType::select:
-                return executeSelect(parser.statement, table);
+                return executeSelect(parser.statement);
                 break;
             case StatementType::remove:
-                return executeRemove(parser.statement, table);
+                return executeRemove(parser.statement);
                 break;
             case StatementType::create:
-                return executeCreate(parser.statement, table);
+                return executeCreate(parser.statement);
                 break;
             case StatementType::update:
-                return executeUpdate(parser.statement, table);
+                return executeUpdate(parser.statement);
                 break;
             case StatementType::drop:
-                return executeDrop(parser.statement, table);
+                return executeDrop(parser.statement);
                 break;
         }
     }
 
 private:
-    static ExecuteResult openTable(std::string& tableName, std::shared_ptr<Table>& table){
-        // TODO: Open Table with given TableName and store in table
-        return ExecuteResult::faliure;
-    }
 
-    static ExecuteResult executeInsert(std::unique_ptr<QueryStatement>& statement, std::shared_ptr<Table>& table){
-        auto insertStatement = dynamic_cast<SelectStatement*>(statement.get());
-
-        if(table->numRows >= table->maxRows){
-            return ExecuteResult::tableFull;
+    ExecuteResult executeInsert(std::unique_ptr<QueryStatement>& statement){
+        std::shared_ptr<Table> table;
+        auto res = sharedManager->open(statement->tableName, table);
+        if(res == TableManagerResult::openedSuccessfully:)
+        switch(res){
+            case TableManagerResult::tableNotFound:
+                printf("Table Not Found");
+            case TableManagerResult::openingFaliure:
+                printf("Failed To Open Table");
+            default:
+                printf("Unknown Error Occurred");
         }
-        Row rowToInsert{};
-//        // TODO: Insert data in rowToInsert from data in statement
-        auto insert = dynamic_cast<InsertStatement*>(statement.get());
-        rowToInsert.serialize(table->end().value());
-        table->numRows += 1;
         return ExecuteResult::faliure;
+//        auto insertStatement = dynamic_cast<SelectStatement*>(statement.get());
+//        Row rowToInsert{};
+//        // TODO: Insert data in rowToInsert from data in statement
+//        auto insert = dynamic_cast<InsertStatement*>(statement.get());
+//        rowToInsert.serialize(table->end().value());
+        return ExecuteResult::success;
     }
 
-    static ExecuteResult executeSelect(std::unique_ptr<QueryStatement>& statement, std::shared_ptr<Table>& table) {
+    ExecuteResult executeSelect(std::unique_ptr<QueryStatement>& statement){
 //        Row row{};
 //        Cursor cursor(statement->table);
 //        for (uint32_t i = 0; i < statement->table->numRows; i++){
@@ -651,21 +651,40 @@ private:
         return ExecuteResult::faliure;
     }
 
-    static ExecuteResult executeUpdate(std::unique_ptr<QueryStatement>& statement, std::shared_ptr<Table>& table) {
+    ExecuteResult executeUpdate(std::unique_ptr<QueryStatement>& statement){
         return ExecuteResult::faliure;
     }
 
-    static ExecuteResult executeCreate(std::unique_ptr<QueryStatement>& statement, std::shared_ptr<Table>& table) {
+    ExecuteResult executeCreate(std::unique_ptr<QueryStatement>& statement){
         auto createStatement = dynamic_cast<CreateStatement*>(statement.get());
-        TableManager
+        auto res = sharedManager->create(createStatement->tableName,
+                std::move(createStatement->colNames),
+                std::move(createStatement->colTypes),
+                std::move(createStatement->colSize));
+
+        switch(res){
+            case TableManagerResult::tableCreatedSuccessfully:
+                printf("Table Created Successfully\n");
+                return ExecuteResult::success;
+                break;
+            case TableManagerResult::tableAlreadyExists:
+                printf("This Table already exists\n");
+                return ExecuteResult::faliure;
+                break;
+            case TableManagerResult::tableCreationFaliure:
+                printf("Failed To Create Table\n");
+                return ExecuteResult::faliure;
+                break;
+            default: break;
+        }
         return ExecuteResult::faliure;
     }
 
-    static ExecuteResult executeRemove(std::unique_ptr<QueryStatement>& statement, std::shared_ptr<Table>& table) {
+    ExecuteResult executeRemove(std::unique_ptr<QueryStatement>& statement){
         return ExecuteResult::faliure;
     }
 
-    static ExecuteResult executeDrop(std::unique_ptr<QueryStatement>& statement, std::shared_ptr<Table>& table) {
+    ExecuteResult executeDrop(std::unique_ptr<QueryStatement>& statement){
         return ExecuteResult::faliure;
     }
 };

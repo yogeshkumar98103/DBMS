@@ -4,6 +4,8 @@
 
 #include "HeaderFiles/TableManager.h"
 
+TableManager::TableManager(std::string baseURL_):baseURL(std::move(baseURL_)){}
+
 TableManagerResult TableManager::open(const std::string& tableName, std::shared_ptr<Table>& table){
     if(tableMap.find(tableName) == tableMap.end()){
         return TableManagerResult::tableNotFound;
@@ -11,9 +13,12 @@ TableManagerResult TableManager::open(const std::string& tableName, std::shared_
 
     table = tableMap[tableName];
     if(table == nullptr){
-        table = std::make_shared<Table>();
-        if(!table->open(getFileName(tableName, TableFileType::baseTable))){
-            table.reset();
+        try{
+            table = std::make_shared<Table>(tableName,
+                                            getFileName(tableName, TableFileType::baseTable));
+            table->loadMetadata();
+        }
+        catch(...){
             return TableManagerResult::openingFaliure;
         }
         tableMap[tableName] = table;
@@ -22,13 +27,26 @@ TableManagerResult TableManager::open(const std::string& tableName, std::shared_
     return TableManagerResult::openedSuccessfully;
 }
 
-TableManagerResult TableManager::create(const std::string& tableName, std::shared_ptr<Table>& table){
-    if(tableMap.count(tableName) != 0){
+TableManagerResult TableManager::create(const std::string& tableName,
+                                        std::vector<std::string>&& columnNames_,
+                                        std::vector<DataType>&& columnTypes_,
+                                        std::vector<uint32_t>&& columnSize_){
+    if(tableMap.find(tableName) != tableMap.end()){
         return TableManagerResult::tableAlreadyExists;
     }
-    table = std::make_shared<Table>(getFileName(tableName, TableFileType::baseTable));
+    std::shared_ptr<Table> table;
+    try{
+        table = std::make_shared<Table>(tableName, getFileName(tableName, TableFileType::baseTable));
+    }catch(...){
+        return TableManagerResult::tableCreationFaliure;
+    }
+
+
+    // Store metadata in first page
+    table->createColumns(std::move(columnNames_), std::move(columnTypes_), std::move(columnSize_));
+    table->storeMetadata();
     tableMap[tableName] = table;
-    return TableManagerResult::openedSuccessfully;
+    return TableManagerResult::tableCreatedSuccessfully;
 }
 
 TableManagerResult TableManager::drop(const std::string& tableName){
@@ -54,14 +72,24 @@ TableManagerResult TableManager::close(const std::string& tableName){
     return TableManagerResult::closedSuccessfully;
 }
 
+TableManagerResult TableManager::closeAll(){
+    for(auto& table: tableMap){
+        if(table.second->tableOpen){
+            table.second->close();
+            table.second.reset();
+        }
+    }
+    tableMap.clear();
+    return TableManagerResult::closedSuccessfully;
+}
+
 std::string TableManager::getFileName(const std::string& tableName, TableFileType type){
     switch(type){
         case TableFileType::indexFile:
-            return tableName + "_" + ".idx";
+            return baseURL + "/" + tableName + "_" + ".idx";
             break;
         case TableFileType::baseTable:
-            return tableName + ".bin";
+            return baseURL + "/" + tableName + ".bin";
             break;
     }
 }
-

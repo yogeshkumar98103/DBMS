@@ -11,31 +11,44 @@
 #include <map>
 #include "Pager.h"
 #include "DataTypes.h"
-#include <cstdlib>
-#include <cstdio>
-//#include "Cursor.h"
-
-#define COLUMN_USERNAME_SIZE 32
-#define COLUMN_EMAIL_SIZE 255
 
 class Table;
 
 class Cursor{
 public:
+    /// This is pointer is the parent Table of whose row this cursor is pointing to
     Table* table;
-    uint32_t rowNum;
+
+    /// This is pointer is the page this cursor is pointing to
+    Page* page;
+
+    /// Row this cursor is pointing to
+    /// Row is zero indexed
+    int32_t row;
+
+    /// This is true if cursor is pointing to last row
+    /// calling operator++ at this point won't increase row further
     bool endOfTable;
 
     explicit Cursor(Table* table);
+
+    /// This increase the member row if not pointing last row
     Cursor operator++();
+
+    /// Step1: This calculates the page on which it is pointing to
+    /// Step2; It calls table->pager to load required page
+    /// Step3: It calculates offset on page to find current row
+    /// Step4: It returns pointer to that row in memory location
     char* value();
+
+    void addedChangesToCommit();
+    void commitChanges();
 };
 
 class Row{
 public:
-    uint32_t id;
-    char username[COLUMN_USERNAME_SIZE + 1];
-    char email[COLUMN_EMAIL_SIZE + 1];
+    Table* table;
+
 
     Row() = default;
     explicit Row(char* source);
@@ -45,40 +58,41 @@ public:
 };
 
 #define size_of_attribute(Struct, Attribute) sizeof(((Struct*)0)->Attribute)
-const uint32_t ID_SIZE = size_of_attribute(Row, id);
-const uint32_t USERNAME_SIZE = size_of_attribute(Row, username);
-const uint32_t EMAIL_SIZE = size_of_attribute(Row, email);
-const uint32_t ID_OFFSET = 0;
-const uint32_t USERNAME_OFFSET = ID_OFFSET + ID_SIZE;
-const uint32_t EMAIL_OFFSET = USERNAME_OFFSET + USERNAME_SIZE;
-const uint32_t ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
 
 class Table{
-public:
     friend class Cursor;
-    const uint32_t rowsPerPage = PAGE_SIZE / ROW_SIZE;
-    const uint32_t maxRows = rowsPerPage * TABLE_MAX_PAGES;
-    uint32_t numRows = 0;
+    friend class TableManager;
+    int32_t rowSize;
+    int32_t rowsPerPage;
+    int32_t numRows = 0;
+    bool tableOpen;
 
     std::string tableName;
     std::unique_ptr<Pager> pager;
 
     std::vector<std::string> columnNames;
     std::vector<DataType> columnTypes;
-    std::vector<uint32_t> columnSize;
+    std::vector<uint32_t> columnSizes;
 
     std::map<std::string, int> columnIndex;
 
-    Table() = default;
+public:
+
+    Table(std::string tableName, const std::string& fileName);
     ~Table();
-    explicit Table(const std::string& fileName);
-    bool open(const std::string& filename);
+
     bool close();
-    void createColumns(std::vector<std::string>&& columnNames, std::vector<DataType>&& columnTypes, std::vector<uint32_t>&& columnSize);
-    void createColumnIndex();
+    void storeMetadata();
+    void loadMetadata();
+    void createColumns(std::vector<std::string>&& columnNames, std::vector<DataType>&& columnTypes, std::vector<uint32_t>&& columnSizes);
 
     Cursor start();
     Cursor end();
+
+private:
+    void createColumnIndex();
+    void serailizeColumnMetadata(char* buffer);
+    void deSerailizeColumnMetadata(char* buffer);
 };
 
 #endif //DBMS_TABLE_H

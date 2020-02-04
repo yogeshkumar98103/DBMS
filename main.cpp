@@ -4,9 +4,8 @@
 
 int main() {
     InputBuffer inputBuffer;
-    std::shared_ptr<Table> table = std::make_shared<Table>("Data.db");
     Parser parser;
-
+    Executor executor(".");
     while(true){
         printPrompt();
         inputBuffer.readInput();
@@ -14,7 +13,7 @@ int main() {
         if(inputBuffer.isMetaCommand()){
             switch(inputBuffer.performMetaCommand()){
                 case MetaCommandResult::exit:
-                    table->close();
+                    executor.sharedManager->closeAll();
                     printf("Exited Successfully\n");
                     exit(EXIT_SUCCESS);
 
@@ -72,7 +71,7 @@ int main() {
                 continue;
         }
 
-        switch(Executor::execute(parser)){
+        switch(executor.execute(parser)){
             case ExecuteResult::success:
                 printf("Executed.\n");
                 break;

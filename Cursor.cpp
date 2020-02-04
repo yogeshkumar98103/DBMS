@@ -5,23 +5,36 @@
 
 Cursor::Cursor(Table* table){
     this->table = table;
-    this->rowNum = 0;
+    this->page = nullptr;
+    this->row = 0;
     this->endOfTable = false;
 }
 
 Cursor Cursor::operator++(){
-    this->rowNum += 1;
-    if(this->rowNum >= this->table->numRows){
+    if(this->row < this->table->numRows){
+        ++this->row;
         this->endOfTable = true;
     }
     return (*this);
 }
 
 char* Cursor::value(){
-    uint32_t pageNum = rowNum / table->rowsPerPage;
-    char* page = table->pager->getPage(pageNum);
-    uint32_t rowOffset = rowNum % table->rowsPerPage;
-    uint32_t byteOffset = rowOffset * ROW_SIZE;
-    return page + byteOffset;
+    uint32_t pageNum = row / table->rowsPerPage;
+    this->page = table->pager->read(pageNum);
+    if(page == nullptr){return nullptr;}
+    // Read Successful
+    uint32_t rowOffset = row % table->rowsPerPage;
+    uint32_t byteOffset = rowOffset * table->rowSize;
+    return page->buffer.get() + byteOffset;
 }
 
+void Cursor::addedChangesToCommit(){
+    if(page != nullptr) page->hasUncommitedChanges = true;
+}
+
+void Cursor::commitChanges(){
+    if(page != nullptr){
+        uint32_t pageNum = row / table->rowsPerPage;
+        this->table->pager->flush(pageNum);
+    }
+}
