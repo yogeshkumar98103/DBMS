@@ -11,8 +11,10 @@ Cursor::Cursor(Table* table){
 }
 
 Cursor Cursor::operator++(){
-    if(this->row < this->table->numRows){
+    if(this->row < this->table->numRows - 1){
         ++this->row;
+    }
+    else{
         this->endOfTable = true;
     }
     return (*this);

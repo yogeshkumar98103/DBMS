@@ -85,10 +85,6 @@ void Table::calculateRowInfo(){
         this->rowSize += size;
     }
     this->rowsPerPage = PAGE_SIZE/rowSize;
-    int64_t usableFileSize = (pager->getFileLength() - PAGE_SIZE);
-    int64_t numberOfFullPages = usableFileSize / PAGE_SIZE;
-    int64_t partialPageSize = usableFileSize % PAGE_SIZE;
-    this->numRows = numberOfFullPages * rowsPerPage + partialPageSize/rowSize;
 }
 
 void Table::serailizeColumnMetadata(char* buffer){
@@ -100,14 +96,17 @@ void Table::serailizeColumnMetadata(char* buffer){
         printf("Failed To Serialize Metadata.\nInconsistent Metadata\n");
         return;
     }
-    static const int32_t sizeInt = sizeof(int32_t);
-    static const int32_t sizeDatatype = sizeof(DataType);
 
     int32_t offset = 0;
 
+    // Write Number of Rows
+    this->numRows = 0;
+    memcpy(buffer + offset, &numRows, sizeof(int64_t));
+    offset += sizeof(int64_t);
+
     // Write Number of columns
-    memcpy(buffer, &size1, sizeInt);
-    offset += sizeInt;
+    memcpy(buffer + offset, &size1, sizeof(int32_t));
+    offset += sizeof(int32_t);
 
     for(const std::string& str: columnNames){
         strncpy(buffer + offset, str.c_str(), MAX_COLUMN_SIZE);
@@ -115,27 +114,28 @@ void Table::serailizeColumnMetadata(char* buffer){
     }
 
     for(uint32_t size: columnSizes){
-        memcpy(buffer + offset, &size, sizeInt);
-        offset += sizeInt;
+        memcpy(buffer + offset, &size, sizeof(int32_t));
+        offset += sizeof(int32_t);
     }
 
     for(const DataType& type: columnTypes){
-        memcpy(buffer + offset, &type, sizeDatatype);
-        offset += sizeDatatype;
+        memcpy(buffer + offset, &type, sizeof(DataType));
+        offset += sizeof(DataType);
     }
 }
 
 void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
-    static const int32_t sizeInt = sizeof(int32_t);
-    static const int32_t sizeDatatype = sizeof(DataType);
     char colName[MAX_COLUMN_SIZE + 1] = {0};
     int32_t colSize;
     DataType colType;
     int32_t offset = 0;
     int32_t size;
 
-    memcpy(&size, metadataBuffer, sizeInt);
-    offset += sizeInt;
+    memcpy(&this->numRows, metadataBuffer + offset, sizeof(int64_t));
+    offset += sizeof(int64_t);
+
+    memcpy(&size, metadataBuffer + offset, sizeof(int32_t));
+    offset += sizeof(int32_t);
 
     columnNames.reserve(size);
     columnSizes.reserve(size);
@@ -148,15 +148,15 @@ void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
     }
 
     for(int32_t i = 0; i < size; ++i){
-        memcpy(&colSize, (metadataBuffer + offset), sizeInt);
+        memcpy(&colSize, (metadataBuffer + offset), sizeof(int32_t));
         columnSizes.emplace_back(colSize);
-        offset += sizeInt;
+        offset += sizeof(int32_t);
     }
 
     for(int32_t i = 0; i < size; ++i){
-        memcpy(&colType, (metadataBuffer + offset), sizeDatatype);
+        memcpy(&colType, (metadataBuffer + offset), sizeof(DataType));
         columnTypes.emplace_back(colType);
-        offset += sizeDatatype;
+        offset += sizeof(DataType);
     }
 }
 
@@ -166,6 +166,10 @@ int32_t Table::getRowSize() const{
 
 void Table::increaseRowCount() {
     this->numRows++;
+    Page* page = pager->read(0);
+    char* buffer = page->buffer.get();
+    memcpy(buffer, &numRows, sizeof(int64_t));
+    page->hasUncommitedChanges = true;
 }
 
 // =============================================

@@ -772,7 +772,7 @@ private:
                 ++cursor;
             }
         }
-        return ExecuteResult::faliure;
+        return ExecuteResult::success;
     }
 
     ExecuteResult executeUpdate(std::unique_ptr<QueryStatement>& statement){
