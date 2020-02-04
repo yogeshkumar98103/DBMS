@@ -5,7 +5,7 @@
 int main() {
     InputBuffer inputBuffer;
     Parser parser;
-    Executor executor(".");
+    Executor executor("./MyDatabase");
     while(true){
         printPrompt();
         inputBuffer.readInput();

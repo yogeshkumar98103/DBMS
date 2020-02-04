@@ -69,14 +69,11 @@ class Table{
 
     std::string tableName;
     std::unique_ptr<Pager> pager;
-
+public:
     std::vector<std::string> columnNames;
     std::vector<DataType> columnTypes;
     std::vector<uint32_t> columnSizes;
-
     std::map<std::string, int> columnIndex;
-
-public:
 
     Table(std::string tableName, const std::string& fileName);
     ~Table();
@@ -86,11 +83,15 @@ public:
     void loadMetadata();
     void createColumns(std::vector<std::string>&& columnNames, std::vector<DataType>&& columnTypes, std::vector<uint32_t>&& columnSizes);
 
+    int32_t getRowSize() const;
+    void increaseRowCount();
+
     Cursor start();
     Cursor end();
 
 private:
     void createColumnIndex();
+    void calculateRowInfo();
     void serailizeColumnMetadata(char* buffer);
     void deSerailizeColumnMetadata(char* buffer);
 };

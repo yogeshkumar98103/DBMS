@@ -3,8 +3,24 @@
 //
 
 #include "HeaderFiles/TableManager.h"
+#include <iostream>
 
-TableManager::TableManager(std::string baseURL_):baseURL(std::move(baseURL_)){}
+TableManager::TableManager(std::string baseURL_):baseURL(std::move(baseURL_)){
+    // Create Directory if it doesn't exist
+//    auto res = mkdir(baseURL.c_str(), 0777);
+    if(!std::filesystem::exists(baseURL)){
+        if(!std::filesystem::create_directory(baseURL)){
+            printf("Failed to open Database\n");
+            return;
+        }
+    }
+    // Read all files in this directory
+    for (auto& itr: std::filesystem::directory_iterator(baseURL)){
+        tableMap[itr.path().stem().string()] = nullptr;
+    }
+
+    printf("Opened Database at \"%s\" Successfully\n", baseURL.c_str());
+}
 
 TableManagerResult TableManager::open(const std::string& tableName, std::shared_ptr<Table>& table){
     if(tableMap.find(tableName) == tableMap.end()){
@@ -74,7 +90,7 @@ TableManagerResult TableManager::close(const std::string& tableName){
 
 TableManagerResult TableManager::closeAll(){
     for(auto& table: tableMap){
-        if(table.second->tableOpen){
+        if(table.second != nullptr && table.second->tableOpen){
             table.second->close();
             table.second.reset();
         }

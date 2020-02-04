@@ -8,6 +8,7 @@
 #include <memory>
 #include <unordered_map>
 #include <queue>
+#include <filesystem>
 #include "Table.h"
 #include "Constants.h"
 

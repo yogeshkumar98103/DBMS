@@ -22,7 +22,9 @@ Pager::~Pager(){
     this->close();
 }
 
-uint32_t Pager::getFileLength() const{
+int64_t Pager::getFileLength(){
+    off_t fileLength_ = lseek(fileDescriptor, 0, SEEK_END);
+    this->fileLength = static_cast<int64_t>(fileLength_);
     return this->fileLength;
 };
 
@@ -35,7 +37,7 @@ bool Pager::open(const char* fileName){
     }
     off_t fileLength_ = lseek(fd, 0, SEEK_END);
     this->fileDescriptor = fd;
-    this->fileLength = static_cast<uint32_t>(fileLength_);
+    this->fileLength = static_cast<int64_t>(fileLength_);
     return true;
 }
 

@@ -36,7 +36,7 @@ struct Page{
 class Pager{
     const int pageLimit;                // Maximum number of pages that can be stored at any time
     int fileDescriptor;                 // File descriptor returned by open system call
-    uint32_t fileLength;                // Length of file pointed by fileDescriptor
+    int64_t fileLength;                 // Length of file pointed by fileDescriptor
     int32_t maxPages;                   // Maximum number of pages this file has
     std::unordered_map<int32_t, std::unique_ptr<Page>> pages;
     std::queue<int32_t> pageQueue;
@@ -47,7 +47,7 @@ public:
     Pager(const char* fileName, int pageLimit_);
     ~Pager();
 
-    uint32_t getFileLength() const;
+    int64_t getFileLength();
     bool close();
     bool flush(uint32_t pageNum);
     Page* read(uint32_t pageNum);
