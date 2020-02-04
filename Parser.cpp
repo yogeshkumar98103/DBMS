@@ -622,7 +622,9 @@ private:
     ExecuteResult executeInsert(std::unique_ptr<QueryStatement>& statement){
         std::shared_ptr<Table> table;
         auto res = sharedManager->open(statement->tableName, table);
-        if(res == TableManagerResult::openedSuccessfully:)
+        if(res == TableManagerResult::openedSuccessfully){
+
+        }
         switch(res){
             case TableManagerResult::tableNotFound:
                 printf("Table Not Found");
