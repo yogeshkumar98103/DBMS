@@ -2,17 +2,15 @@
 // Created by Yogesh Kumar on 2020-01-31.
 //
 #include <iostream>
-#include <fstream>
 #include <cstring>
 #include <vector>
 #include <memory>
-#include <utility> 
-
+#include <utility>
 
 template <typename key_t>
 class BPTNode{
     using Node = BPTNode<key_t>;
-    using keyRNPair = std::pair<key_t,int>;
+    using keyRNPair = std::pair<key_t, long long int>;
     bool isLeaf;
     int size;
     keyRNPair* keys;     // key and row Number
@@ -51,7 +49,7 @@ template <typename key_t>
 class BPTree{
     using Node      = BPTNode<key_t>;
     using result_t  = SearchResult<key_t>;
-    using keyRNPair = std::pair<key_t,int>;
+    using keyRNPair = std::pair<key_t, long long int>;
 
     std::unique_ptr<Node> root;
     int branchingFactor;
@@ -59,25 +57,6 @@ class BPTree{
 public:
     explicit BPTree(int branchingFactor_):branchingFactor(branchingFactor_), root(nullptr){}
 
-    result_t search(const keyRNPair& key){
-        result_t searchRes{};
-
-        if(root != nullptr){
-            auto node = root.get();
-
-            while(!(node->isLeaf)) {
-                int indexFound = binarySearch(node, key);
-                node = node->child[indexFound].get();
-            }
-
-            int indexFound = binarySearch(node, key);
-            if((indexFound != node->size) && (node->keys[indexFound] == key)){
-                searchRes.index = indexFound;
-                searchRes.node = node;
-            }
-        }
-        return searchRes;
-    }
 
     bool insert(const keyRNPair& key) {
         if(root == nullptr){
@@ -182,58 +161,126 @@ public:
         std::cout << std::endl;
     }
 
-    void greaterThanEquals(const keyRNPair& key) {
-        auto searchRes = search(key);
+    void greaterThanEquals(const key_t& key) {
+        auto searchRes = searchUtil(std::make_pair(key,-1));
+        if(searchRes.node->size == searchRes.index) {
+            searchRes.index--;
+            rightPosition(searchRes);
+        }
         iterateRightLeaf(searchRes.node, searchRes.index);
         printf("\n");
     }
 
-    void smallerThanEquals(const keyRNPair& key) {
-        auto searchRes = search(key);
+    void smallerThanEquals(const key_t& key) {
+        auto searchRes = searchUtil(std::make_pair(key,LONG_MAX));
+        if(searchRes.node->size == searchRes.index) {
+            searchRes.index--;
+        }
+        else{
+            leftPosition(searchRes);
+        }
         iterateLeftLeaf(searchRes.node, searchRes.index);
         printf("\n");
     }
 
-    void smallerThan(const keyRNPair& key) {
-        auto searchRes = search(key);
-        if(searchRes.index>0) {
+    void greaterThan(const key_t& key) {
+        auto searchRes = searchUtil(std::make_pair(key,LONG_MAX));
+        if(searchRes.node->size == searchRes.index) {
+            searchRes.index--;
+            rightPosition(searchRes);
+        }
+        iterateRightLeaf(searchRes.node, searchRes.index);
+        printf("\n");
+    }
+
+    void smallerThan(const key_t& key) {
+        auto searchRes = searchUtil(std::make_pair(key,-1));
+        if(searchRes.node->size == searchRes.index) {
             searchRes.index--;
         }
         else {
-            if(searchRes.node->leftSibling_){
-                searchRes.node = searchRes.node->leftSibling_;
-                searchRes.index = searchRes.node->size-1;
-            }
-            else {
-                return;
-            }
+            leftPosition(searchRes);
         }
         iterateLeftLeaf(searchRes.node, searchRes.index);
         printf("\n");
     }
 
-    void greaterThan(const keyRNPair& key) {
-        auto searchRes = search(key);
-        if(searchRes.index < searchRes.node->size-1) {
-            searchRes.index++;
+    bool search(const key_t& key){
+        auto searchRes = searchUtil(std::make_pair(key,-1));
+        if(searchRes.node->size == searchRes.index) {
+            return false;
         }
-        else {
-            if(searchRes.node->rightSibling_){
-                searchRes.node = searchRes.node->rightSibling_;
-                searchRes.index = 0;
-            }
-            else {
-                return;
-            }
-        }
-        iterateRightLeaf(searchRes.node, searchRes.index);
-        printf("\n");
+        return true;
     }
+
+    // void removeWithKey(const key_t& key){
+    //     result_t searchResStart, searchResEnd;
+    //     searchResStart = search(make_pair(key, -1));
+    //     searchResEnd = search(make_pair(key, LONG_MAX));
+    //     if(searchResEnd == searchResStart)
+    // }
 
 
 
 private:
     // MARK:- HELPER FUNCTIONS
+    result_t searchUtil(const keyRNPair& key){
+        result_t searchRes{};
+
+        if(root != nullptr){
+            auto node = root.get();
+
+            while(!(node->isLeaf)) {
+                int indexFound = binarySearch(node, key);
+                node = node->child[indexFound].get();
+            }
+
+            int indexFound = binarySearch(node, key);
+            searchRes.index = indexFound;
+            searchRes.node = node;
+        }
+        return searchRes;
+    }
+
+    void rightPosition(result_t& currentPosition){
+        if(currentPosition.index < currentPosition.node->size-1) {
+            currentPosition.index++;
+        }
+        else {
+            if(currentPosition.node->rightSibling_){
+                currentPosition.node = currentPosition.node->rightSibling_;
+                currentPosition.index = 0;
+            }
+            else {
+                currentPosition.node = nullptr;
+                currentPosition.index = -1;
+            }
+        }
+    }
+
+    void leftPosition(result_t& currentPosition){
+        if(currentPosition.index>0) {
+            currentPosition.index--;
+        }
+        else {
+            if(currentPosition.node->leftSibling_){
+                currentPosition.node = currentPosition.node->leftSibling_;
+                currentPosition.index = currentPosition.node->size-1;
+            }
+            else {
+                currentPosition.node = nullptr;
+                currentPosition.index = -1;
+            }
+        }
+    }
+
+    void lowerBoundSearch(const key_t& key) {
+        auto searchRes = searchUtil(std::make_pair(key,LONG_MAX));
+        if(searchRes.node){
+
+        }
+    }
+
     int binarySearch(Node* node, const keyRNPair& key) {
         int l = 0;
         int r = node->size - 1;
@@ -317,6 +364,11 @@ private:
         if(!child->isLeaf) --(child->size);
 
         newSibling->leftSibling_ = parent->child[indexFound].get();
+        newSibling->rightSibling_ = parent->child[indexFound].get()->rightSibling_;
+        if(newSibling->rightSibling_){
+            newSibling->rightSibling_->leftSibling_ = newSibling.get();
+        }
+
         child->rightSibling_ = newSibling.get();
         parent->child[indexFound+1] = std::move(newSibling);
     }
@@ -339,7 +391,7 @@ private:
 
         printf("%d# ", start->size);
         for(int i = 0; i < start->size; ++i) {
-            std::cout << start->keys[i].first << " ";
+            std::cout << start->keys[i].first << "(" << start->keys[i].second << ") ";
         }
         std::cout << std::endl;
 
@@ -493,8 +545,9 @@ private:
                 printf("%d ", node->keys[i].first);
             }
             node = node->leftSibling_;
-            if(node)
-            startIndex = node->size-1;
+            if(node){
+                startIndex = node->size-1;
+            }
         }
     }
 
@@ -505,8 +558,15 @@ private:
             }
             node = node->rightSibling_;
             startIndex=0;
+
         }
     }
+
+    // void nextKey(Node* node, int index){
+    //     if(index < node->size-1){
+
+    //     }
+    // }
 
 };
 
@@ -520,51 +580,70 @@ void BPTreeTest(){
     bt.bfsTraverse();
     bt.insert({15,4});
     bt.bfsTraverse();
-    bt.insert(11);
+    bt.insert({11,5});
     bt.bfsTraverse();
-    bt.insert(21);
-    bt.bfsTraverse();
-    bt.insert(51);
-    bt.bfsTraverse();
-    bt.insert(17);
-    bt.bfsTraverse();
-    bt.insert(71);
-    bt.bfsTraverse();
-//    bt.insert(71);
+//    bt.insert({21,6});
 //    bt.bfsTraverse();
-//    bt.insert(11);
+//    bt.insert({51,6});
 //    bt.bfsTraverse();
-//    bt.insert(10);
+//    bt.insert({17,7});
 //    bt.bfsTraverse();
+    bt.insert({71,5});
+    bt.bfsTraverse();
+    bt.insert({71,6});
+    bt.bfsTraverse();
+    bt.insert({71,7});
+    bt.bfsTraverse();
+    bt.insert({71,8});
+    bt.bfsTraverse();
+    bt.insert({71,9});
+    bt.bfsTraverse();
+    bt.insert({11,10});
+    bt.bfsTraverse();
+    bt.insert({10,11});
+    bt.bfsTraverse();
 
     std::cout << "Insert done" << std::endl;
 
-     std::cout << bt.remove(71) << std::endl;
-     bt.bfsTraverse();
-     std::cout << bt.remove(21) << std::endl;
-     bt.bfsTraverse();
-     std::cout << bt.remove(51) << std::endl;
-     bt.bfsTraverse();
-     std::cout << bt.remove(11) << std::endl;
-     bt.bfsTraverse();
-     bt.insert(11);
-     bt.bfsTraverse();
-    // auto searchRes = bt.search(11);
-    // std::cout << searchRes.node << std::endl;
-    // std::cout << searchRes.index << std::endl;
-    // bt.iterateRightLeaf(searchRes.node, searchRes.index);
+     // std::cout << bt.remove(71) << std::endl;
+     // bt.bfsTraverse();
+     // std::cout << bt.remove(21) << std::endl;
+     // bt.bfsTraverse();
+     // std::cout << bt.remove(51) << std::endl;
+     // bt.bfsTraverse();
+     // std::cout << bt.remove(11) << std::endl;
+     // bt.bfsTraverse();
+     // bt.insert(11);
+     // bt.bfsTraverse();
+//     auto searchRes = bt.searchUtil({15,-1});
+//     std::cout << searchRes.node << std::endl;
+//     std::cout << searchRes.index << std::endl;
+    //bt.iterateRightLeaf(searchRes.node, searchRes.index);
 
+    bt.smallerThanEquals(11);
     bt.smallerThan(11);
+    bt.greaterThanEquals(11);
     bt.greaterThan(11);
+    bt.smallerThanEquals(6);
+    bt.smallerThan(6);
+    bt.greaterThanEquals(6);
+    bt.greaterThan(6);
+    bt.smallerThanEquals(71);
+    bt.smallerThan(71);
+    bt.greaterThanEquals(71);
+    bt.greaterThan(71);
+    bt.smallerThanEquals(20);
+    bt.smallerThan(20);
+    bt.greaterThanEquals(20);
+    bt.greaterThan(20);
+    //  bt.bfsTraverse();
+    //  std::cout << bt.remove(10) << std::endl;
+    //  bt.bfsTraverse();
+    //  std::cout << bt.remove(5) << std::endl;
+    //  bt.bfsTraverse();
 
-     bt.bfsTraverse();
-     std::cout << bt.remove(10) << std::endl;
-     bt.bfsTraverse();
-     std::cout << bt.remove(5) << std::endl;
-     bt.bfsTraverse();
-
-    bt.smallerThan(11);
-    bt.greaterThan(17);
+    // bt.smallerThan(11);
+    // bt.greaterThan(17);
 }
 
 int main(){
