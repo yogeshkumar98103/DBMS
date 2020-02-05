@@ -1,7 +1,7 @@
 #include "HeaderFiles/Pager.h"
 
 Pager::Pager(const char* fileName):pageLimit(DEFAULT_PAGE_LIMIT){
-    this->fileDescriptor = -1;
+    this->fileDescriptor = 0;
     this->fileLength = 0;
     this->maxPages = 0;
     if(!this->open(fileName)){
@@ -43,16 +43,9 @@ bool Pager::open(const char* fileName){
 
 bool Pager::close(){
     if(this->fileDescriptor == -1) return false;
-
-    while(!pageQueue.empty()){
-        int32_t pageNum = pageQueue.front();
-        pageQueue.pop();
-        if(this->pages[pageNum]->hasUncommitedChanges){
-            this->flush(pageNum);
-        }
-        pages.erase(pageNum);
-    }
-
+    flushAll();
+    pageQueue.clear();
+    pageMap.clear();
     int result = ::close(fileDescriptor);
     this->fileDescriptor = -1;
     return (result != -1);
@@ -63,60 +56,111 @@ bool Pager::close(){
 /// pageNum is 0 indexed
 Page* Pager::read(uint32_t pageNum){
     if(this->fileDescriptor == -1) return nullptr;
-    if(pages.find(pageNum) == pages.end()){
+    std::unique_ptr page;
+    if(pageMap.find(pageNum) == pageMap.end()){
         // Cache miss. Allocate memory and load from file.
-        pages[pageNum] = std::make_unique<Page>();
+        page = std::make_unique<Page>();
+        page->pageNum = pageNum;
         this->fileLength = static_cast<uint32_t>(lseek(fileDescriptor, 0, SEEK_END));
         this->maxPages = (this->fileLength + PAGE_SIZE - 1) / PAGE_SIZE;
 
         if(pageNum < maxPages){
             // This page reside in memory so read it
             lseek(fileDescriptor, pageNum * PAGE_SIZE, SEEK_SET);
-            ssize_t bytesRead = ::read(fileDescriptor, pages[pageNum]->buffer.get(), PAGE_SIZE);
+            ssize_t bytesRead = ::read(fileDescriptor, page->buffer.get(), PAGE_SIZE);
             if(bytesRead == -1){
                 printf("Error reading file: %d\n", errno);
-                pages.erase(pageNum);
                 return nullptr;
             }
         }
 
         // Handle Page Queue
-        pageQueue.push(pageNum);
-        if(pageQueue.size() >= pageLimit){
-            // Remove the page that was used earliest
-            int pageNumToRemove = pageQueue.front();
-            pageQueue.pop();
-            if(pages[pageNumToRemove]->hasUncommitedChanges){
-                this->flush(pageNumToRemove);
+        if (pageQueue.size() >= pageLimit) {
+            auto it = std::move(pageQueue.back());
+            if(it->hasUncommitedChanges){
+                this->flushPage(it.get());
             }
-            pages.erase(pageNumToRemove);
+            pageQueue.pop_back();
+            pageMap.erase(it->pageNum);
         }
     }
-
-    return pages[pageNum].get();
+    else{
+        auto pageItr = pageMap[pageNum];
+        page = std::move(*pageItr);
+        pageQueue.erase(pageItr);
+    }
+    pageQueue.emplace_front(std::move(page));
+    pageMap[pageNum] = pageQueue.begin();
+    return pageQueue.begin()->get();
 }
 
 /// This flushes the given page to storage if it is open
 bool Pager::flush(uint32_t pageNum){
     if(this->fileDescriptor == -1) return false;
-    if(pages.find(pageNum) == pages.end()){
+    if(pageMap.find(pageNum) == pageMap.end()){
         // Page Not Loaded Yet
         printf("Tried To write page which is not read: %d\n", errno);
         return false;
     }
+    auto it = pageMap[pageNum]->get();
+    return flushPage(it);
+}
 
-    off_t offset = lseek(fileDescriptor, pageNum * PAGE_SIZE, SEEK_SET);
-    if (offset == -1) {
-        printf("Error seeking: %d\n", errno);
-        return false;
+bool Pager::flushAll(){
+    if(this->fileDescriptor == -1) return false;
+    int size = pageQueue.size();
+    for(auto& it: pageQueue){
+        int32_t pageNum = it->pageNum;
+        if(it->hasUncommitedChanges){
+            if(!flushPage(it.get())) return false;
+        }
     }
-
-    ssize_t bytesWritten = write(fileDescriptor, pages[pageNum]->buffer.get(), PAGE_SIZE);
-    if (bytesWritten == -1) {
-        printf("Error writing: %d\n", errno);
-        return false;
-    }
-
-    pages[pageNum]->hasUncommitedChanges = false;
     return true;
 }
+
+bool Pager::flushPage(Page* page){
+    return true;
+    off_t offset = lseek(fileDescriptor, page->pageNum * PAGE_SIZE, SEEK_SET);
+    if (offset == -1) return false;
+    ssize_t bytesWritten = write(fileDescriptor, page->buffer.get(), PAGE_SIZE);
+    if (bytesWritten == -1) return false;
+    page->hasUncommitedChanges = false;
+    return true;
+}
+
+//void Pager::printQueue(){
+//    for(auto& it: pageQueue){
+//        std::cout << it->pageNum << "->";
+//    }
+//    std::cout << std::endl;
+//}
+
+//void testPager(){
+//    Pager pager("Mytable", 4);
+//    std::cout << pager.read(0)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(1)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(2)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(3)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(4)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(2)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(0)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(1)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(2)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(3)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(1)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(2)->pageNum << std::endl;
+//    pager.printQueue();
+//    std::cout << pager.read(3)->pageNum << std::endl;
+//    pager.printQueue();
+//}

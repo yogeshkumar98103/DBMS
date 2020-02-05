@@ -118,61 +118,8 @@ private:
         Cursor tableEnd = table->end();
         char* buffer = tableEnd.value();
         if(buffer == nullptr) return ExecuteResult::unexpectedError;
-        int32_t offset = 0;
-        for(int32_t i = 0; i < columnCount; ++i){
-            switch(table->columnTypes[i]){
-                case DataType::Int:
-                    try{
-                        int32_t dataInt = std::stoi(insertStatement->data[i]);
-                        memcpy(buffer + offset, &dataInt, sizeof(int32_t));
-                        offset += sizeof(int32_t);
-                    }catch(...){
-                        return ExecuteResult::typeMismatch;
-                    }
-                    break;
-
-                case DataType::Float:
-                    try{
-                        float dataInt = std::stof(insertStatement->data[i]);
-                        memcpy(buffer + offset, &dataInt, sizeof(float));
-                        offset += sizeof(float);
-                    }catch(...){
-                        return ExecuteResult::typeMismatch;
-                    }
-                    break;
-
-                case DataType::Char:
-                    if(insertStatement->data[i].size() != 1){
-                        return ExecuteResult::typeMismatch;
-                    }
-                    memcpy(buffer + offset, &insertStatement->data[i][0], sizeof(char));
-                    offset += sizeof(char);
-                    break;
-
-                case DataType::Bool:
-                    bool dataBool;
-                    if(strncmp(insertStatement->data[i].c_str(), "true", 4) == 0){
-                        dataBool = true;
-                    }
-                    else if(strncmp(insertStatement->data[i].c_str(), "false", 4) == 0){
-                        dataBool = false;
-                    }
-                    else{
-                        return ExecuteResult::typeMismatch;
-                    }
-                    memcpy(buffer + offset, &dataBool, sizeof(bool));
-                    offset += sizeof(bool);
-                    break;
-
-                case DataType::String:
-                    if(insertStatement->data[i].size() > table->columnSizes[i]){
-                        return ExecuteResult::stringTooLarge;
-                    }
-                    strncpy(buffer + offset, insertStatement->data[i].c_str(), table->columnSizes[i]);
-                    offset += table->columnSizes[i];
-                    break;
-            }
-        }
+        auto serializeRes = serializeRow(buffer, table.get(), insertStatement->data);
+        if(serializeRes != ExecuteResult::success) return serializeRes;
         table->increaseRowCount();
         tableEnd.addedChangesToCommit();
 
@@ -189,7 +136,7 @@ private:
 
         auto selectStatement = dynamic_cast<SelectStatement*>(statement.get());
 
-        std::vector<int> indices;
+        std::vector<int32_t> indices;
         if(!selectStatement->selectAllCols){
             for(auto& str: selectStatement->colNames){
                 int32_t index = table->columnIndex[str];
@@ -216,10 +163,47 @@ private:
     }
 
     ExecuteResult executeUpdate(std::unique_ptr<QueryStatement>& statement){
-        return ExecuteResult::faliure;
+        std::shared_ptr<Table> table;
+        auto res = sharedManager->open(statement->tableName, table);
+        if(res != TableManagerResult::openedSuccessfully) {
+            return ExecuteResult::faliure;
+        }
+
+        auto updateStatement = dynamic_cast<UpdateStatement*>(statement.get());
+        std::vector<int32_t> indices;
+        for(auto& str: updateStatement->colNames){
+            int32_t index = table->columnIndex[str];
+            indices.emplace_back(index);
+        }
+        // TODO: Search Btree for given condition
+        //       Read Matched Records
+
+        // Call this lambda on every matched row
+        auto updateCallback = [&](Cursor& cursor)->bool{
+            char* buffer = cursor.value();
+            if(buffer == nullptr) return false;
+            auto tempBuffer = std::make_unique<char[]>(cursor.table->getRowSize() + 1);
+            strncpy(tempBuffer.get(), buffer, table->getRowSize());
+            auto serializeRes = serializeRow(tempBuffer.get(), cursor.table, updateStatement->colValues, false , &indices);
+            if(serializeRes != ExecuteResult::success) return false;
+            strncpy(buffer, tempBuffer.get(), table->getRowSize());
+            cursor.addedChangesToCommit();
+            return true;
+        };
+        return ExecuteResult::success;
     }
 
     ExecuteResult executeRemove(std::unique_ptr<QueryStatement>& statement){
+        std::shared_ptr<Table> table;
+        auto res = sharedManager->open(statement->tableName, table);
+        if(res != TableManagerResult::openedSuccessfully) {
+            return ExecuteResult::faliure;
+        }
+
+        auto deleteStatement = dynamic_cast<DeleteStatement*>(statement.get());
+        // TODO: Search Btree for given condition
+        //       Read Matched Records
+        //       Write Updated Value
         return ExecuteResult::faliure;
     }
 
@@ -233,6 +217,64 @@ private:
     }
 
 private:
+    static ExecuteResult serializeRow(char* buffer, Table* table, std::vector<std::string>& data, bool serializeAll = true, std::vector<int32_t>* indices = nullptr){
+        int32_t offset = 0;
+        int32_t j = 0;
+        int32_t size = table->columnNames.size();
+        for(int32_t i = 0; i < size; ++i){
+            if(serializeAll || (*indices)[j] == i) {
+                switch (table->columnTypes[i]) {
+                    case DataType::Int:
+                        try {
+                            int32_t dataInt = std::stoi(data[j]);
+                            memcpy(buffer + offset, &dataInt, sizeof(int32_t));
+                        } catch (...) {
+                            return ExecuteResult::typeMismatch;
+                        }
+                        break;
+
+                    case DataType::Float:
+                        try {
+                            float dataInt = std::stof(data[j]);
+                            memcpy(buffer + offset, &dataInt, sizeof(float));
+                        } catch (...) {
+                            return ExecuteResult::typeMismatch;
+                        }
+                        break;
+
+                    case DataType::Char:
+                        if (data[i].size() != 1) {
+                            return ExecuteResult::typeMismatch;
+                        }
+                        memcpy(buffer + offset, &data[j][0], sizeof(char));
+                        break;
+
+                    case DataType::Bool:
+                        bool dataBool;
+                        if (strncmp(data[j].c_str(), "true", 4) == 0) {
+                            dataBool = true;
+                        } else if (strncmp(data[j].c_str(), "false", 4) == 0) {
+                            dataBool = false;
+                        } else {
+                            return ExecuteResult::typeMismatch;
+                        }
+                        memcpy(buffer + offset, &dataBool, sizeof(bool));
+
+                        break;
+
+                    case DataType::String:
+                        if (data[j].size() > table->columnSizes[i]) {
+                            return ExecuteResult::stringTooLarge;
+                        }
+                        strncpy(buffer + offset, data[j].c_str(), table->columnSizes[i]);
+                        break;
+                }
+                ++j;
+            }
+            offset += table->columnSizes[i];
+        }
+        return ExecuteResult::success;
+    }
 
     static bool deserializeRow(char* buffer, std::shared_ptr<Table>& table, std::vector<int32_t>& indices, std::vector<std::string>& row, bool selectAll){
         try{

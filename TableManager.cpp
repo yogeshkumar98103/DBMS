@@ -100,6 +100,15 @@ TableManagerResult TableManager::closeAll(){
     tableMap.clear();
     return TableManagerResult::closedSuccessfully;
 }
+void TableManager::flushAll(){
+    for(auto& table: tableMap){
+        if(table.second != nullptr && table.second->tableOpen){
+            table.second->pager->flushAll();
+            table.second.reset();
+        }
+    }
+    tableMap.clear();
+}
 
 std::string TableManager::getFileName(const std::string& tableName, TableFileType type){
     switch(type){

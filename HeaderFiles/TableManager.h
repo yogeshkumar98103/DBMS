@@ -69,6 +69,7 @@ public:
     TableManagerResult close(const std::string &tableName);
 
     TableManagerResult closeAll();
+    void flushAll();
 
 private:
 

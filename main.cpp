@@ -17,6 +17,10 @@ int main() {
                     printf("Exited Successfully\n");
                     exit(EXIT_SUCCESS);
 
+                case MetaCommandResult::flush:
+                    executor.sharedManager->flushAll();
+                    printf("Flushed Successfully\n");
+
                 case MetaCommandResult::empty:
                     continue;
 
