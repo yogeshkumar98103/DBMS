@@ -207,11 +207,29 @@ public:
 
     bool search(const key_t& key){
         auto searchRes = searchUtil(std::make_pair(key,-1));
-        if(searchRes.node->size == searchRes.index) {
+        if(searchRes.node->size == searchRes.index || searchRes.node->keys[searchRes.index].first != key) {
             return false;
         }
         return true;
     }
+
+    result_t findFirstKey(const key_t& key){
+        auto searchRes = searchUtil(std::make_pair(key,-1));
+        if(searchRes.node->size == searchRes.index || searchRes.node->keys[searchRes.index].first != key) {
+            searchRes.node = nullptr;
+            searchRes.index = -1;
+        }
+        return searchRes;
+    }
+
+
+    // result_t findLastKey(const key_t& key){
+    //     auto searchRes = searchUtil(std::make_pair(key,LONG_MAX));
+    //     if(searchRes.node->size == searchRes.index || searchRes.node->keys[searchRes.index].first != key) {
+    //         return false;
+    //     }
+    //     return true;
+    // }
 
     // void removeWithKey(const key_t& key){
     //     result_t searchResStart, searchResEnd;
@@ -620,25 +638,40 @@ void BPTreeTest(){
 //     std::cout << searchRes.index << std::endl;
     //bt.iterateRightLeaf(searchRes.node, searchRes.index);
 
-    bt.smallerThanEquals(11);
-    bt.smallerThan(11);
-    bt.greaterThanEquals(11);
-    bt.greaterThan(11);
-    bt.smallerThanEquals(6);
-    bt.smallerThan(6);
-    bt.greaterThanEquals(6);
-    bt.greaterThan(6);
-    bt.smallerThanEquals(71);
-    bt.smallerThan(71);
-    bt.greaterThanEquals(71);
-    bt.greaterThan(71);
-    bt.smallerThanEquals(20);
-    bt.smallerThan(20);
-    bt.greaterThanEquals(20);
-    bt.greaterThan(20);
+    // bt.smallerThanEquals(11);
+    // bt.smallerThan(11);
+    // bt.greaterThanEquals(11);
+    // bt.greaterThan(11);
+    // bt.smallerThanEquals(12);
+    // bt.smallerThan(12);
+    // bt.greaterThanEquals(12);
+    // bt.greaterThan(12);
+    // bt.smallerThanEquals(71);
+    // bt.smallerThan(71);
+    // bt.greaterThanEquals(71);
+    // bt.greaterThan(71);
+    // bt.smallerThanEquals(20);
+    // bt.smallerThan(20);
+    // bt.greaterThanEquals(20);
+    // bt.greaterThan(20);
+    // bt.smallerThanEquals(4);
+    // bt.smallerThan(4);
+    // bt.greaterThanEquals(4);
+    // bt.greaterThan(4);
+    // bt.smallerThanEquals(100);
+    // bt.smallerThan(100);
+    // bt.greaterThanEquals(100);
+    // bt.greaterThan(100);
+
+   std::cout<<bt.search(4)<<std::endl;
+   std::cout<<bt.search(20)<<std::endl;
+
     //  bt.bfsTraverse();
-    //  std::cout << bt.remove(10) << std::endl;
-    //  bt.bfsTraverse();
+     bt.remove({20,2});
+     bt.bfsTraverse();
+     bt.insert({71,10});
+     bt.bfsTraverse();
+     std::cout<<bt.search(71)<<std::endl;
     //  std::cout << bt.remove(5) << std::endl;
     //  bt.bfsTraverse();
 
