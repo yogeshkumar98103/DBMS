@@ -20,6 +20,7 @@ enum class StatementType{
     update,
     remove,
     create,
+    index,
     drop
 };
 
@@ -40,18 +41,10 @@ enum class PrepareResult{
     noCondition
 };
 
-enum class ExecuteResult{
-    success,
-    tableFull,
-    faliure,
-    typeMismatch,
-    stringTooLarge,
-    unexpectedError
-};
-
 /*
  *  ---------------------- COMMANDS ----------------------
  *  create table <table-name>{<col-1>:<DATATYPE>, <col-2>:<DATATYPE>, ...}
+ *  index on {<col-1>, <col-2>} in table
  *  insert into <table-name>{<col-1-data>, <col-1-data>, ...}
  *  update <table-name> set {<col-1> = <data-1>, <col-1> = <data-1>, ...}
  *  update <table-name> set {<col-1> = <data-1>, <col-1> = <data-1>, ...} where <CONDITION>
@@ -137,6 +130,10 @@ struct InsertStatement: public QueryStatement{
     std::vector<std::string> data;
 };
 
+struct IndexStatement: public QueryStatement{
+    std::vector<std::string> colNames;
+};
+
 struct SelectStatement: public QueryStatement{
     std::vector<std::string> colNames;
     Condition condition;
@@ -204,6 +201,9 @@ public:
         else if(strncmp(inputBuffer.buffer.c_str(), "create table", 12) == 0){
             res = parseCreate(inputBuffer);
         }
+        else if(strncmp(inputBuffer.buffer.c_str(), "index on", 8) == 0){
+            res = parseIndex(inputBuffer);
+        }
         else if(strncmp(inputBuffer.buffer.c_str(), "update", 6) == 0){
             res = parseUpdate(inputBuffer);
         }
@@ -235,7 +235,7 @@ private:
     }
 
     // HELPER FUNCTIONS
-    static bool checkOpeningBrace(const char** ptr){
+    static inline bool checkOpeningBrace(const char** ptr){
         int n = 0;
         char val[2];
         if(sscanf(*ptr, " %1[{] %n", val, &n) != 1){
@@ -244,13 +244,13 @@ private:
         (*ptr) += n;
         return true;
     }
-    static bool parseFormatString(const char** ptr, char* field, const char* formatString){
+    static inline bool parseFormatString(const char** ptr, char* field, const char* formatString){
         int n = 0;
         if(sscanf(*ptr, formatString, field, &n) != 1) return false;
         (*ptr) += n;
         return true;
     }
-    static bool getNextValue(const char** ptr, char* field){
+    static inline bool getNextValue(const char** ptr, char* field){
         int n = 0;
         char val[2];
         // Get Opening quote
@@ -267,7 +267,7 @@ private:
 
         return true;
     }
-    static bool getSeperator(const char** ptr, char* val){
+    static inline bool getSeperator(const char** ptr, char* val){
         int n = 0;
         if(sscanf(*ptr, " %1s %n", val, &n) != 1) return false;
         (*ptr) += n;
@@ -345,6 +345,34 @@ private:
         createStatement->colTypes = std::move(colTypes);
         createStatement->colSize  = std::move(colSize);
         this->statement = std::move(createStatement);
+        return PrepareResult::success;
+    }
+
+    PrepareResult parseIndex(InputBuffer& inputBuffer){
+        // SYNTAX:- index on {<col-1>, <col-2>} in table;
+        this->type = StatementType::index;
+        const char *ptr = inputBuffer.str() + 8;
+        std::vector<std::string> colNames;
+        char colName[MAX_COLUMN_SIZE];
+        char seperator[3];
+        if(!checkOpeningBrace(&ptr)) return PrepareResult::syntaxError;
+        int n = 0;
+        while(true){
+            // Get String
+            if(sscanf(ptr, "%255[^ \t\n,}]%n", colName, &n) != 1) return PrepareResult::syntaxError;
+            ptr += n;
+            printf("Indexing On: %s\n", colName);
+            colNames.emplace_back(colName);
+            if(!getSeperator(&ptr, seperator)) return PrepareResult::syntaxError;
+            if(seperator[0] == ',') continue;
+            if(seperator[0] == '}') break;
+            else return PrepareResult::syntaxError;
+        }
+        if(!getTableName(&ptr, "in")) return PrepareResult::noTableName;
+
+        auto indexStatement = std::make_unique<IndexStatement>();
+        indexStatement->colNames = std::move(colNames);
+        this->statement = std::move(indexStatement);
         return PrepareResult::success;
     }
 

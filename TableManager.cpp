@@ -15,7 +15,9 @@ TableManager::TableManager(std::string baseURL_):baseURL(std::move(baseURL_)){
     }
     // Read all files in this directory
     for (auto& itr: std::filesystem::directory_iterator(baseURL)){
-        tableMap[itr.path().stem().string()] = nullptr;
+        if(itr.is_regular_file()){
+            tableMap[itr.path().stem().string()] = nullptr;
+        }
     }
 
     printf("Opened Database at \"%s\" Successfully\n", baseURL.c_str());
@@ -55,7 +57,6 @@ TableManagerResult TableManager::create(const std::string& tableName,
     }catch(...){
         return TableManagerResult::tableCreationFaliure;
     }
-
 
     // Store metadata in first page
     table->createColumns(std::move(columnNames_), std::move(columnTypes_), std::move(columnSize_));
@@ -110,13 +111,22 @@ void TableManager::flushAll(){
     tableMap.clear();
 }
 
-std::string TableManager::getFileName(const std::string& tableName, TableFileType type){
+bool TableManager::createIndex(std::shared_ptr<Table>& table, int32_t index){
+    if(table == nullptr || index < 0) return false;
+    bool res = table->createIndexPager(index, getFileName(table->tableName, TableFileType::indexFile, index));
+    if(!res) return false;
+    table->storeIndexMetadata(index);
+    return true;
+}
+
+std::string TableManager::getFileName(const std::string& tableName, TableFileType type, int32_t index){
     switch(type){
         case TableFileType::indexFile:
-            return baseURL + "/" + tableName + "_" + ".idx";
-            break;
+            if(index < 0) throw std::runtime_error("Invalid Index");
+            char fileName[255];
+            sprintf(fileName, "%s/indexes/%s_%d.idx", baseURL.c_str(), tableName.c_str(), index);
+            return fileName;
         case TableFileType::baseTable:
             return baseURL + "/" + tableName + ".bin";
-            break;
     }
 }

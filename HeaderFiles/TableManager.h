@@ -67,14 +67,14 @@ public:
     TableManagerResult drop(const std::string &tableName);
 
     TableManagerResult close(const std::string &tableName);
-
+    bool createIndex(std::shared_ptr<Table>& table, int32_t index);
     TableManagerResult closeAll();
     void flushAll();
 
 private:
 
     /// This is helper function to get proper file names
-    std::string getFileName(const std::string &tableName, TableFileType type);
+    std::string getFileName(const std::string &tableName, TableFileType type, int index = -1);
 };
 
 

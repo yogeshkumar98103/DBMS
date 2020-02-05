@@ -25,8 +25,9 @@ struct Page{
     int32_t pageNum;
 
     Page(){
-        buffer = std::make_unique<char[]>(PAGE_SIZE);//new char[PAGE_SIZE];
+        buffer = std::make_unique<char[]>(PAGE_SIZE);
         hasUncommitedChanges = false;
+        pageNum = 0;
         printf("Page Created\n");
     }
 
@@ -46,8 +47,9 @@ class Pager{
     bool open(const char* fileName);
 
 public:
-    explicit Pager(const char* fileName);
-    Pager(const char* fileName, int pageLimit_);
+    std::unique_ptr<Page> header;
+
+    Pager(const char* fileName, int pageLimit_ = DEFAULT_PAGE_LIMIT);
     ~Pager();
 
     int64_t getFileLength();

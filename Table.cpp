@@ -12,7 +12,6 @@ Table::Table(std::string tableName, const std::string& fileName){
         this->pager = std::make_unique<Pager>(fileName.c_str());
     }
     catch(...){
-
         throw;
     }
     // TODO: Read first page to get metadata
@@ -26,6 +25,16 @@ Table::Table(std::string tableName, const std::string& fileName){
     this->numRows = 0;
     this->rowSize = 0;
     this->rowsPerPage = 0;
+}
+
+bool Table::createIndexPager(int32_t index, const std::string& fileName){
+    if(!indexed[index]) return false;
+    try{
+        this->indexPagers[index] = std::make_unique<Pager>(fileName.c_str());
+    }
+    catch(...){
+        return false;
+    }
 }
 
 Table::~Table(){
@@ -65,15 +74,22 @@ void Table::createColumnIndex(){
 }
 
 void Table::storeMetadata() {
-    Page* page = pager->read(0);
+    Page* page = pager->header.get();
     serailizeColumnMetadata(page->buffer.get());
     page->hasUncommitedChanges = true;
     pager->flush(0);
     calculateRowInfo();
 }
 
+void Table::storeIndexMetadata(int32_t index){
+    Page* page = indexPagers[index]->header.get();
+    serializeIndexMetadata(page->buffer.get(), index);
+    page->hasUncommitedChanges = true;
+    pager->flush(0);
+}
+
 void Table::loadMetadata() {
-    Page* page = pager->read(0);
+    Page* page = pager->header.get();
     deSerailizeColumnMetadata(page->buffer.get());
     this->createColumnIndex();
     calculateRowInfo();
@@ -101,8 +117,8 @@ void Table::serailizeColumnMetadata(char* buffer){
 
     // Write Number of Rows
     this->numRows = 0;
-    memcpy(buffer + offset, &numRows, sizeof(int64_t));
-    offset += sizeof(int64_t);
+    memcpy(buffer + offset, &numRows, sizeof(row_t));
+    offset += sizeof(row_t);
 
     // Write Number of columns
     memcpy(buffer + offset, &size1, sizeof(int32_t));
@@ -122,6 +138,9 @@ void Table::serailizeColumnMetadata(char* buffer){
         memcpy(buffer + offset, &type, sizeof(DataType));
         offset += sizeof(DataType);
     }
+    rowStackPtr = 0;
+    memcpy(buffer + offset, &rowStackPtr, sizeof(int32_t));
+    rowStackOffset = offset + sizeof(int32_t);
 }
 
 void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
@@ -131,8 +150,8 @@ void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
     int32_t offset = 0;
     int32_t size;
 
-    memcpy(&this->numRows, metadataBuffer + offset, sizeof(int64_t));
-    offset += sizeof(int64_t);
+    memcpy(&this->numRows, metadataBuffer + offset, sizeof(row_t));
+    offset += sizeof(row_t);
 
     memcpy(&size, metadataBuffer + offset, sizeof(int32_t));
     offset += sizeof(int32_t);
@@ -158,6 +177,72 @@ void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
         columnTypes.emplace_back(colType);
         offset += sizeof(DataType);
     }
+    memcpy(&rowStackPtr, (metadataBuffer + offset), sizeof(int32_t));
+    rowStackOffset = offset + sizeof(int32_t);
+}
+
+void Table::serializeIndexMetadata(char* buffer, int32_t index){
+    // 1. Stack Ptr
+    // 2. Blank Spaces
+    int32_t offset = 0;
+    memcpy(buffer + offset, &stackPtr[index], sizeof(int32_t));
+    offset += sizeof(int32_t);
+}
+
+void Table::deSerializeIndexMetadata(char* buffer, int32_t index){
+    // 1. Stack Ptr
+    // 2. Blank Spaces
+    int32_t offset = 0;
+    memcpy(&stackPtr[index], buffer + offset, sizeof(int32_t));
+    offset += sizeof(int32_t);
+}
+
+row_t Table::nextFreeIndexLocation(int32_t index){
+    if(stackPtr[index] == 0) return numRows;
+    Page* page = indexPagers[index]->header.get();
+    char* buffer = page->buffer.get();
+    int32_t offset = (stackPtr[index] - 1) * sizeof(row_t) + sizeof(int32_t);
+    row_t nextRow;
+    memcpy(&nextRow, buffer + offset, sizeof(int32_t));
+    stackPtr[index]--;
+    memcpy(buffer, &stackPtr[index], sizeof(int32_t));
+    return nextRow;
+}
+
+row_t Table::nextFreeRowLocation(){
+    if(rowStackPtr == 0) return numRows;
+    Page* page = pager->header.get();
+    char* buffer = page->buffer.get();
+    int32_t offset = (rowStackPtr - 1) * sizeof(row_t) + rowStackOffset;
+    row_t nextRow;
+    memcpy(&nextRow, buffer + offset, sizeof(int32_t));
+    rowStackPtr--;
+    memcpy(buffer, &rowStackPtr, sizeof(int32_t));
+    return nextRow;
+}
+
+void Table::addFreeRowLocation(row_t location){
+    Page* page = pager->header.get();
+    char* buffer = page->buffer.get();
+    int32_t offset = rowStackPtr * sizeof(row_t) + sizeof(int32_t);
+    rowStackPtr++;
+    if(offset + sizeof(row_t) > PAGE_SIZE){
+        printf("Stack Overflow occurred in main table.\n");
+        throw std::runtime_error("STACK OVERFLOWS HEADER PAGE");
+    }
+    memcpy(buffer + offset, &location, sizeof(row_t));
+}
+
+void Table::addFreeIndexLocation(row_t location, int index){
+    Page* page = indexPagers[index]->header.get();
+    char* buffer = page->buffer.get();
+    int32_t offset = stackPtr[index] * sizeof(row_t) + sizeof(int32_t);
+    stackPtr[index]++;
+    if(offset + sizeof(row_t) > PAGE_SIZE){
+        printf("Stack Overflow occurred at %d\n", index);
+        throw std::runtime_error("STACK OVERFLOWS HEADER PAGE");
+    }
+    memcpy(buffer + offset, &location, sizeof(row_t));
 }
 
 int32_t Table::getRowSize() const{
@@ -166,32 +251,8 @@ int32_t Table::getRowSize() const{
 
 void Table::increaseRowCount() {
     this->numRows++;
-    Page* page = pager->read(0);
+    Page* page = pager->header.get();
     char* buffer = page->buffer.get();
     memcpy(buffer, &numRows, sizeof(int64_t));
     page->hasUncommitedChanges = true;
-}
-
-// =============================================
-//                  ROW
-// =============================================
-
-Row::Row(char* source){
-    deserialize(source);
-}
-
-void Row::serialize(char* destination) {
-//    memcpy(destination + ID_OFFSET, &(this->id), ID_SIZE);
-//    strncpy(destination + USERNAME_OFFSET, this->username, USERNAME_SIZE);
-//    strncpy(destination + EMAIL_OFFSET, this->email, EMAIL_SIZE);
-}
-
-void Row::deserialize(char* source){
-//    memcpy(&(this->id), source + ID_OFFSET, ID_SIZE);
-//    memcpy(&(this->username), source + USERNAME_OFFSET, USERNAME_SIZE);
-//    memcpy(&(this->email), source + EMAIL_OFFSET, EMAIL_SIZE);
-}
-
-void Row::print(){
-//    printf("Id: %d | Username: %s | Email: %s\n", id, username, email);
 }

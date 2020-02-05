@@ -3,6 +3,16 @@
 //
 #include "Parser.cpp"
 
+enum class ExecuteResult{
+    success,
+    tableFull,
+    faliure,
+    typeMismatch,
+    stringTooLarge,
+    invalidColumnName,
+    unexpectedError
+};
+
 struct ErrorHandler{
     static void handleTableManagerError(const TableManagerResult& res){
         switch(res){
@@ -44,6 +54,14 @@ struct ErrorHandler{
         printf("Number of values provided does not match number of columns\n"
                "Expected %d value(s). Got %d value(s)\n", expectedSize, actualSize);
     }
+
+    static void indexCreationError(const std::string& colName){
+        printf("Failed to create index on %s\n", colName.c_str());
+    }
+
+    static void indexCreationSuccessful(const std::string& colName){
+        printf("Successfully created index on %s\n", colName.c_str());
+    }
 };
 
 class Executor{
@@ -70,6 +88,8 @@ public:
             case StatementType::create:
                 res = executeCreate(parser.statement);
                 break;
+            case StatementType::index:
+                res = executeIndex(parser.statement);
             case StatementType::update:
                 res = executeUpdate(parser.statement);
                 break;
@@ -97,6 +117,34 @@ private:
             return ExecuteResult::success;
         }
         return ExecuteResult::faliure;
+    }
+
+    ExecuteResult executeIndex(std::unique_ptr<QueryStatement>& statement){
+        std::shared_ptr<Table> table;
+        auto res = sharedManager->open(statement->tableName, table);
+        if(res != TableManagerResult::openedSuccessfully) {
+            return ExecuteResult::faliure;
+        }
+
+        auto insertStatement = dynamic_cast<IndexStatement*>(statement.get());
+        for(auto& colName: insertStatement->colNames){
+            auto itr = table->columnIndex.find(colName);
+            if(itr == table->columnIndex.end()){
+                return ExecuteResult::invalidColumnName;
+            }
+            int32_t index = itr->second;
+            if(!table->indexed[index]){
+                table->indexed[index] = true;
+                if(!sharedManager->createIndex(table, index)){
+                    ErrorHandler::indexCreationError(colName);
+                    return ExecuteResult::faliure;
+                }
+                else{
+                    ErrorHandler::indexCreationSuccessful(colName);
+                }
+            }
+        }
+        return ExecuteResult::success;
     }
 
     ExecuteResult executeInsert(std::unique_ptr<QueryStatement>& statement){
