@@ -6,13 +6,17 @@
 #include <cstring>
 #include <vector>
 #include <memory>
+#include <utility> 
+
 
 template <typename key_t>
 class BPTNode{
     using Node = BPTNode<key_t>;
+    using keyRNPair = std::pair<key_t,int>;
     bool isLeaf;
     int size;
-    key_t* keys;
+    keyRNPair* keys;     // key and row Number
+    // key_t* keys;
     std::unique_ptr<Node>* child;
     Node* leftSibling_;
     Node* rightSibling_;
@@ -22,7 +26,7 @@ class BPTNode{
 
 public:
     explicit BPTNode(int branchingFactor):isLeaf(false),size(1),leftSibling_(nullptr),rightSibling_(nullptr){
-        keys = new key_t[(2 * branchingFactor - 1)];
+        keys = new keyRNPair[(2 * branchingFactor - 1)];
         child = new std::unique_ptr<Node>[2 * branchingFactor];
     }
 
@@ -47,6 +51,7 @@ template <typename key_t>
 class BPTree{
     using Node      = BPTNode<key_t>;
     using result_t  = SearchResult<key_t>;
+    using keyRNPair = std::pair<key_t,int>;
 
     std::unique_ptr<Node> root;
     int branchingFactor;
@@ -54,7 +59,7 @@ class BPTree{
 public:
     explicit BPTree(int branchingFactor_):branchingFactor(branchingFactor_), root(nullptr){}
 
-    result_t search(const key_t& key){
+    result_t search(const keyRNPair& key){
         result_t searchRes{};
 
         if(root != nullptr){
@@ -74,7 +79,7 @@ public:
         return searchRes;
     }
 
-    bool insert(const key_t& key) {
+    bool insert(const keyRNPair& key) {
         if(root == nullptr){
             root = std::make_unique<Node>(branchingFactor);
             root->keys[0] = key;
@@ -127,7 +132,7 @@ public:
         return true;
     }
 
-    bool remove(const key_t& key) {
+    bool remove(const keyRNPair& key) {
         if(root == nullptr){
             return false;
         }
@@ -177,19 +182,19 @@ public:
         std::cout << std::endl;
     }
 
-    void greaterThanEquals(const key_t& key) {
+    void greaterThanEquals(const keyRNPair& key) {
         auto searchRes = search(key);
         iterateRightLeaf(searchRes.node, searchRes.index);
         printf("\n");
     }
 
-    void smallerThanEquals(const key_t& key) {
+    void smallerThanEquals(const keyRNPair& key) {
         auto searchRes = search(key);
         iterateLeftLeaf(searchRes.node, searchRes.index);
         printf("\n");
     }
 
-    void smallerThan(const key_t& key) {
+    void smallerThan(const keyRNPair& key) {
         auto searchRes = search(key);
         if(searchRes.index>0) {
             searchRes.index--;
@@ -207,7 +212,7 @@ public:
         printf("\n");
     }
 
-    void greaterThan(const key_t& key) {
+    void greaterThan(const keyRNPair& key) {
         auto searchRes = search(key);
         if(searchRes.index < searchRes.node->size-1) {
             searchRes.index++;
@@ -229,7 +234,7 @@ public:
 
 private:
     // MARK:- HELPER FUNCTIONS
-    int binarySearch(Node* node, const key_t& key) {
+    int binarySearch(Node* node, const keyRNPair& key) {
         int l = 0;
         int r = node->size - 1;
         int mid;
@@ -334,7 +339,7 @@ private:
 
         printf("%d# ", start->size);
         for(int i = 0; i < start->size; ++i) {
-            std::cout << start->keys[i] << " ";
+            std::cout << start->keys[i].first << " ";
         }
         std::cout << std::endl;
 
@@ -485,7 +490,7 @@ private:
     void iterateLeftLeaf(Node* node, int startIndex){
         while(node!=nullptr){
             for(int i=startIndex;i>=0;i--){
-                printf("%d ", node->keys[i]);
+                printf("%d ", node->keys[i].first);
             }
             node = node->leftSibling_;
             if(node)
@@ -496,7 +501,7 @@ private:
     void iterateRightLeaf(Node* node, int startIndex){
         while(node!=nullptr){
             for(int i=startIndex;i<node->size;i++){
-                printf("%d ", node->keys[i]);
+                printf("%d ", node->keys[i].first);
             }
             node = node->rightSibling_;
             startIndex=0;
@@ -507,13 +512,13 @@ private:
 
 void BPTreeTest(){
     BPTree<int> bt(2);
-    bt.insert(10);
+    bt.insert({10,1});
     bt.bfsTraverse();
-    bt.insert(20);
+    bt.insert({20,2});
     bt.bfsTraverse();
-    bt.insert(5);
+    bt.insert({5,3});
     bt.bfsTraverse();
-    bt.insert(15);
+    bt.insert({15,4});
     bt.bfsTraverse();
     bt.insert(11);
     bt.bfsTraverse();
