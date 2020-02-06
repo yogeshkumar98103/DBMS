@@ -11,6 +11,7 @@
 #include <map>
 #include "Pager.h"
 #include "DataTypes.h"
+#include "BTree.h"
 
 class Table;
 
@@ -24,7 +25,7 @@ public:
 
     /// Row this cursor is pointing to
     /// Row is zero indexed
-    int32_t row;
+    row_t row;
 
     /// This is true if cursor is pointing to last row
     /// calling operator++ at this point won't increase row further
@@ -45,54 +46,56 @@ public:
     void commitChanges();
 };
 
-class Row{
-public:
-    Table* table;
-
-
-    Row() = default;
-    explicit Row(char* source);
-    void serialize(char* destination);
-    void deserialize(char* source);
-    void print();
-};
-
-#define size_of_attribute(Struct, Attribute) sizeof(((Struct*)0)->Attribute)
-
 class Table{
     friend class Cursor;
     friend class TableManager;
     int32_t rowSize;
     int32_t rowsPerPage;
-    int32_t numRows = 0;
+    row_t numRows = 0;
+    int32_t rowStackPtr;
+    int32_t rowStackOffset;
     bool tableOpen;
 
     std::string tableName;
     std::unique_ptr<Pager> pager;
+public:
 
     std::vector<std::string> columnNames;
     std::vector<DataType> columnTypes;
     std::vector<uint32_t> columnSizes;
-
     std::map<std::string, int> columnIndex;
-
-public:
+    std::vector<bool> indexed;
+    std::vector<std::unique_ptr<Pager>> indexPagers;
+    std::vector<int32_t> stackPtr;
+    std::vector<std::unique_ptr<BPlusTreeBase>> bPlusTrees;
 
     Table(std::string tableName, const std::string& fileName);
     ~Table();
 
     bool close();
     void storeMetadata();
+    void storeIndexMetadata(int32_t index);
     void loadMetadata();
     void createColumns(std::vector<std::string>&& columnNames, std::vector<DataType>&& columnTypes, std::vector<uint32_t>&& columnSizes);
 
+    int32_t getRowSize() const;
+    void increaseRowCount();
+    row_t nextFreeIndexLocation(int32_t index);
+    row_t nextFreeRowLocation();
+    void addFreeRowLocation(row_t location);
+    void addFreeIndexLocation(row_t location, int index);
+    bool insertBTree(std::vector<std::string>& data, row_t row);
     Cursor start();
     Cursor end();
 
 private:
     void createColumnIndex();
+    void calculateRowInfo();
+    bool createIndexPager(int32_t index, const std::string& fileName);
     void serailizeColumnMetadata(char* buffer);
     void deSerailizeColumnMetadata(char* buffer);
+    void serializeIndexMetadata(char* buffer, int32_t index);
+    void deSerializeIndexMetadata(char* buffer, int32_t index);
 };
 
 #endif //DBMS_TABLE_H

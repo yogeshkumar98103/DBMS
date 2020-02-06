@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.12)
 project(DBMS)
 
 set(CMAKE_CXX_STANDARD 17)
-
-add_executable(DBMS main.cpp Cursor.cpp Table.cpp Pager.cpp TableManager.cpp)
-add_executable(BTree BTree.cpp)
+set(LNCURSES_COMPILE_FLAG "-lncurses")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LNCURSES_COMPILE_FLAG}" )
+#set_source_files_properties(main.cpp "${LNCURSES_COMPILE_FLAG}")
+#set_source_files_properties(CommandHistory.cpp "${LNCURSES_COMPILE_FLAG}")
+add_executable(DBMS main.cpp Cursor.cpp Table.cpp Pager.cpp TableManager.cpp BTree.cpp)
+#add_executable(BTree BTree.cpp)

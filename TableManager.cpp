@@ -3,8 +3,25 @@
 //
 
 #include "HeaderFiles/TableManager.h"
+#include <iostream>
 
-TableManager::TableManager(std::string baseURL_):baseURL(std::move(baseURL_)){}
+TableManager::TableManager(std::string baseURL_):baseURL(std::move(baseURL_)){
+    // Create Directory if it doesn't exist
+    if(!std::filesystem::exists(baseURL)){
+        if(!std::filesystem::create_directory(baseURL)){
+            printf("Failed to open Database\n");
+            return;
+        }
+    }
+    // Read all files in this directory
+    for (auto& itr: std::filesystem::directory_iterator(baseURL)){
+        if(itr.is_regular_file()){
+            tableMap[itr.path().stem().string()] = nullptr;
+        }
+    }
+
+    printf("Opened Database at \"%s\" Successfully\n", baseURL.c_str());
+}
 
 TableManagerResult TableManager::open(const std::string& tableName, std::shared_ptr<Table>& table){
     if(tableMap.find(tableName) == tableMap.end()){
@@ -41,7 +58,6 @@ TableManagerResult TableManager::create(const std::string& tableName,
         return TableManagerResult::tableCreationFaliure;
     }
 
-
     // Store metadata in first page
     table->createColumns(std::move(columnNames_), std::move(columnTypes_), std::move(columnSize_));
     table->storeMetadata();
@@ -55,7 +71,10 @@ TableManagerResult TableManager::drop(const std::string& tableName){
     if(res != TableManagerResult::openedSuccessfully){
         return res;
     }
-    // if(table.drop()) return TableManagerResult::droppingFaliure;
+    int removeRes = std::remove(getFileName(tableName, TableFileType::baseTable).c_str());
+    if(removeRes != 0){
+        return TableManagerResult::droppingFaliure;
+    }
     return TableManagerResult::droppedSuccessfully;
 }
 
@@ -74,7 +93,7 @@ TableManagerResult TableManager::close(const std::string& tableName){
 
 TableManagerResult TableManager::closeAll(){
     for(auto& table: tableMap){
-        if(table.second->tableOpen){
+        if(table.second != nullptr && table.second->tableOpen){
             table.second->close();
             table.second.reset();
         }
@@ -82,14 +101,32 @@ TableManagerResult TableManager::closeAll(){
     tableMap.clear();
     return TableManagerResult::closedSuccessfully;
 }
+void TableManager::flushAll(){
+    for(auto& table: tableMap){
+        if(table.second != nullptr && table.second->tableOpen){
+            table.second->pager->flushAll();
+            table.second.reset();
+        }
+    }
+    tableMap.clear();
+}
 
-std::string TableManager::getFileName(const std::string& tableName, TableFileType type){
+bool TableManager::createIndex(std::shared_ptr<Table>& table, int32_t index){
+    if(table == nullptr || index < 0) return false;
+    bool res = table->createIndexPager(index, getFileName(table->tableName, TableFileType::indexFile, index));
+    if(!res) return false;
+    table->storeIndexMetadata(index);
+    return true;
+}
+
+std::string TableManager::getFileName(const std::string& tableName, TableFileType type, int32_t index){
     switch(type){
         case TableFileType::indexFile:
-            return baseURL + "/" + tableName + "_" + ".idx";
-            break;
+            if(index < 0) throw std::runtime_error("Invalid Index");
+            char fileName[255];
+            sprintf(fileName, "%s/indexes/%s_%d.idx", baseURL.c_str(), tableName.c_str(), index);
+            return fileName;
         case TableFileType::baseTable:
             return baseURL + "/" + tableName + ".bin";
-            break;
     }
 }

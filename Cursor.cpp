@@ -1,7 +1,7 @@
 //
 // Created by Yogesh Kumar on 2020-01-31.
 //
-#include "HeaderFiles/Cursor.h"
+#include "HeaderFiles/Table.h"
 
 Cursor::Cursor(Table* table){
     this->table = table;
@@ -11,15 +11,18 @@ Cursor::Cursor(Table* table){
 }
 
 Cursor Cursor::operator++(){
-    if(this->row < this->table->numRows){
+    if(this->row < this->table->numRows - 1){
         ++this->row;
+    }
+    else{
         this->endOfTable = true;
     }
     return (*this);
 }
 
 char* Cursor::value(){
-    uint32_t pageNum = row / table->rowsPerPage;
+    // TODO: Correct this after adding table header
+    uint32_t pageNum = (row / table->rowsPerPage) + 1;
     this->page = table->pager->read(pageNum);
     if(page == nullptr){return nullptr;}
     // Read Successful
@@ -35,6 +38,7 @@ void Cursor::addedChangesToCommit(){
 void Cursor::commitChanges(){
     if(page != nullptr){
         uint32_t pageNum = row / table->rowsPerPage;
+        page->hasUncommitedChanges = true;
         this->table->pager->flush(pageNum);
     }
 }

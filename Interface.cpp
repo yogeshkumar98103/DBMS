@@ -9,7 +9,8 @@
 enum class MetaCommandResult{
     exit,
     empty,
-    unrecognized
+    unrecognized,
+    flush
 };
 
 class InputBuffer{
@@ -33,6 +34,9 @@ public:
     MetaCommandResult performMetaCommand(){
         if(buffer == ".exit"){
             return MetaCommandResult::exit;
+        }
+        else if(buffer == ".flush"){
+            return MetaCommandResult::flush;
         }
         else if(buffer.empty()){
             return MetaCommandResult::empty;
