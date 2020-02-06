@@ -207,20 +207,37 @@ public:
 
     bool search(const key_t& key){
         auto searchRes = searchUtil(std::make_pair(key,-1));
-        if(searchRes.node->size == searchRes.index || searchRes.node->keys[searchRes.index].first != key) {
+        if(searchRes.node->size == searchRes.index) {
+            searchRes.index--;
+            rightPosition(searchRes);
+        }
+        if(searchRes.node->keys[searchRes.index].first != key) {
             return false;
         }
         return true;
     }
 
-    result_t findFirstKey(const key_t& key){
+    void traverseAllWithKey(const key_t& key){
         auto searchRes = searchUtil(std::make_pair(key,-1));
-        if(searchRes.node->size == searchRes.index || searchRes.node->keys[searchRes.index].first != key) {
-            searchRes.node = nullptr;
-            searchRes.index = -1;
+        if(searchRes.node->size == searchRes.index) {
+            searchRes.index--;
+            rightPosition(searchRes);
         }
-        return searchRes;
+        while(searchRes.node && searchRes.node->keys[searchRes.index].first == key){
+            printf("%d(%d) ", searchRes.node->keys[searchRes.index].first,searchRes.node->keys[searchRes.index].second);
+            rightPosition(searchRes);
+        }
+        printf("\n");
     }
+
+    // result_t findFirstKey(const key_t& key){
+    //     auto searchRes = searchUtil(std::make_pair(key,-1));
+    //     if(searchRes.node->size == searchRes.index || searchRes.node->keys[searchRes.index].first != key) {
+    //         searchRes.node = nullptr;
+    //         searchRes.index = -1;
+    //     }
+    //     return searchRes;
+    // }
 
 
     // result_t findLastKey(const key_t& key){
@@ -231,12 +248,12 @@ public:
     //     return true;
     // }
 
-    // void removeWithKey(const key_t& key){
-    //     result_t searchResStart, searchResEnd;
-    //     searchResStart = search(make_pair(key, -1));
-    //     searchResEnd = search(make_pair(key, LONG_MAX));
-    //     if(searchResEnd == searchResStart)
-    // }
+     void removeWithKey(const key_t& key){
+         result_t searchResStart, searchResEnd;
+         searchResStart = search(make_pair(key, -1));
+         searchResEnd = search(make_pair(key, LONG_MAX));
+         if(searchResEnd == searchResStart)
+     }
 
 
 
@@ -292,12 +309,7 @@ private:
         }
     }
 
-    void lowerBoundSearch(const key_t& key) {
-        auto searchRes = searchUtil(std::make_pair(key,LONG_MAX));
-        if(searchRes.node){
 
-        }
-    }
 
     int binarySearch(Node* node, const keyRNPair& key) {
         int l = 0;
@@ -671,7 +683,10 @@ void BPTreeTest(){
      bt.bfsTraverse();
      bt.insert({71,10});
      bt.bfsTraverse();
+     bt.remove({71,9});
+     bt.bfsTraverse();
      std::cout<<bt.search(71)<<std::endl;
+     bt.traverseAllWithKey(10);
     //  std::cout << bt.remove(5) << std::endl;
     //  bt.bfsTraverse();
 
