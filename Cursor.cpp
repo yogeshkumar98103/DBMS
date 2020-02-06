@@ -1,7 +1,7 @@
 //
 // Created by Yogesh Kumar on 2020-01-31.
 //
-#include "HeaderFiles/Cursor.h"
+#include "HeaderFiles/Table.h"
 
 Cursor::Cursor(Table* table){
     this->table = table;

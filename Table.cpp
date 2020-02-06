@@ -273,4 +273,5 @@ bool Table::insertBTree(std::vector<std::string>& data, row_t row){
         if(!indexed[i]) continue;
         // TODO: Call insert in bPlusTrees[i]
     }
+    return true;
 }

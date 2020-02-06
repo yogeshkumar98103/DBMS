@@ -64,29 +64,6 @@ struct ErrorHandler{
     }
 };
 
-template <typename T>
-T convert(const std::string& str);
-
-template <>
-int convert(const std::string& str){
-    return std::stoi(str);
-}
-
-template <>
-char convert(const std::string& str){
-    return str[0];
-}
-
-template <>
-bool convert(const std::string& str){
-    return str == "true";
-}
-
-template <>
-float convert(const std::string& str){
-    return std::stof(str);
-}
-
 class Executor{
 public:
     std::unique_ptr<TableManager> sharedManager;
@@ -242,7 +219,7 @@ private:
         else{
             switch(condition.compType1){
                 case ComparisonType::equal:
-                    table->bPlusTrees[index]
+//                    table->bPlusTrees[index]
                     break;
                 case ComparisonType::notEqual:
                     break;

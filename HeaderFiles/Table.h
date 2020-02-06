@@ -11,7 +11,7 @@
 #include <map>
 #include "Pager.h"
 #include "DataTypes.h"
-#include "../BTree.cpp"
+#include "BTree.h"
 
 class Table;
 
@@ -67,7 +67,7 @@ public:
     std::vector<bool> indexed;
     std::vector<std::unique_ptr<Pager>> indexPagers;
     std::vector<int32_t> stackPtr;
-    std::vector<std::unique_ptr<BaseBPTree>> bPlusTrees;
+    std::vector<std::unique_ptr<BPlusTreeBase>> bPlusTrees;
 
     Table(std::string tableName, const std::string& fileName);
     ~Table();
