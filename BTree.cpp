@@ -7,6 +7,17 @@
 #include <memory>
 #include <utility>
 
+#define LLONG_MAX 9223372036854775807LL
+
+// class BTreeBase{
+// public:
+//     virtual ~BTreeBase() = default;
+//     void traverseAllWithKey(std::string) = 0;
+// };
+
+// template <typename T>
+// T convert(std::string);
+
 template <typename key_t>
 class BPTNode{
     using Node = BPTNode<key_t>;
@@ -14,7 +25,6 @@ class BPTNode{
     bool isLeaf;
     int size;
     keyRNPair* keys;     // key and row Number
-    // key_t* keys;
     std::unique_ptr<Node>* child;
     Node* leftSibling_;
     Node* rightSibling_;
@@ -172,7 +182,7 @@ public:
     }
 
     void smallerThanEquals(const key_t& key) {
-        auto searchRes = searchUtil(std::make_pair(key,LONG_MAX));
+        auto searchRes = searchUtil(std::make_pair(key,LLONG_MAX));
         if(searchRes.node->size == searchRes.index) {
             searchRes.index--;
         }
@@ -184,7 +194,7 @@ public:
     }
 
     void greaterThan(const key_t& key) {
-        auto searchRes = searchUtil(std::make_pair(key,LONG_MAX));
+        auto searchRes = searchUtil(std::make_pair(key,LLONG_MAX));
         if(searchRes.node->size == searchRes.index) {
             searchRes.index--;
             rightPosition(searchRes);
@@ -206,6 +216,7 @@ public:
     }
 
     bool search(const key_t& key){
+        // key_t key = convert<key_t>(str);
         auto searchRes = searchUtil(std::make_pair(key,-1));
         if(searchRes.node->size == searchRes.index) {
             searchRes.index--;
@@ -218,13 +229,14 @@ public:
     }
 
     void traverseAllWithKey(const key_t& key){
+        // key_t key = convert<key_t>(str);
         auto searchRes = searchUtil(std::make_pair(key,-1));
         if(searchRes.node->size == searchRes.index) {
             searchRes.index--;
             rightPosition(searchRes);
         }
         while(searchRes.node && searchRes.node->keys[searchRes.index].first == key){
-            printf("%d(%d) ", searchRes.node->keys[searchRes.index].first,searchRes.node->keys[searchRes.index].second);
+            printf("%d(%ld) ", searchRes.node->keys[searchRes.index].first,searchRes.node->keys[searchRes.index].second);
             rightPosition(searchRes);
         }
         printf("\n");
@@ -241,7 +253,7 @@ public:
 
 
     // result_t findLastKey(const key_t& key){
-    //     auto searchRes = searchUtil(std::make_pair(key,LONG_MAX));
+    //     auto searchRes = searchUtil(std::make_pair(key,LLONG_MAX));
     //     if(searchRes.node->size == searchRes.index || searchRes.node->keys[searchRes.index].first != key) {
     //         return false;
     //     }
@@ -249,16 +261,39 @@ public:
     // }
 
      void removeWithKey(const key_t& key){
-         result_t searchResStart, searchResEnd;
-         searchResStart = search(make_pair(key, -1));
-         searchResEnd = search(make_pair(key, LONG_MAX));
-         if(searchResEnd == searchResStart)
+        auto searchRes = searchUtil(std::make_pair(key,-1));
+        if(searchRes.node->size == searchRes.index) {
+            searchRes.index--;
+            rightPosition(searchRes);
+        }
+        int startIndexNode = searchRes.index;
+        int endIndexNode = startIndexNode;
+        while(endIndexNode < searchRes.node->size){
+            if(searchRes.node->keys[endIndexNode].first != key){
+                break;
+            }
+            endIndexNode++;
+        }
+
+        int countCanDelete = searchRes.node->size - (branchingFactor-1);
+        
+        
+
      }
 
 
 
 private:
     // MARK:- HELPER FUNCTIONS
+
+
+    void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete){
+        for(int i = index; i < leaf->size-1; ++i){
+            leaf->keys[i] = leaf->keys[i+countToDelete];
+        }
+        leaf->size-=countToDelete;
+    }
+
     result_t searchUtil(const keyRNPair& key){
         result_t searchRes{};
 
@@ -686,7 +721,7 @@ void BPTreeTest(){
      bt.remove({71,9});
      bt.bfsTraverse();
      std::cout<<bt.search(71)<<std::endl;
-     bt.traverseAllWithKey(10);
+     bt.traverseAllWithKey(12);
     //  std::cout << bt.remove(5) << std::endl;
     //  bt.bfsTraverse();
 
