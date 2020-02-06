@@ -11,6 +11,7 @@
 #include <map>
 #include "Pager.h"
 #include "DataTypes.h"
+#include "../BTree.cpp"
 
 class Table;
 
@@ -24,7 +25,7 @@ public:
 
     /// Row this cursor is pointing to
     /// Row is zero indexed
-    int32_t row;
+    row_t row;
 
     /// This is true if cursor is pointing to last row
     /// calling operator++ at this point won't increase row further
@@ -66,6 +67,7 @@ public:
     std::vector<bool> indexed;
     std::vector<std::unique_ptr<Pager>> indexPagers;
     std::vector<int32_t> stackPtr;
+    std::vector<std::unique_ptr<BaseBPTree>> bPlusTrees;
 
     Table(std::string tableName, const std::string& fileName);
     ~Table();
@@ -82,6 +84,7 @@ public:
     row_t nextFreeRowLocation();
     void addFreeRowLocation(row_t location);
     void addFreeIndexLocation(row_t location, int index);
+    bool insertBTree(std::vector<std::string>& data, row_t row);
     Cursor start();
     Cursor end();
 

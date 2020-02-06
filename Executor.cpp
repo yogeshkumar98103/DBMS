@@ -64,6 +64,29 @@ struct ErrorHandler{
     }
 };
 
+template <typename T>
+T convert(const std::string& str);
+
+template <>
+int convert(const std::string& str){
+    return std::stoi(str);
+}
+
+template <>
+char convert(const std::string& str){
+    return str[0];
+}
+
+template <>
+bool convert(const std::string& str){
+    return str == "true";
+}
+
+template <>
+float convert(const std::string& str){
+    return std::stof(str);
+}
+
 class Executor{
 public:
     std::unique_ptr<TableManager> sharedManager;
@@ -163,15 +186,16 @@ private:
         }
 
         // Serialise Data;
-        Cursor tableEnd = table->end();
-        char* buffer = tableEnd.value();
+        Cursor cursor(table.get());
+        cursor.row = table->nextFreeRowLocation();
+        char* buffer = cursor.value();
         if(buffer == nullptr) return ExecuteResult::unexpectedError;
         auto serializeRes = serializeRow(buffer, table.get(), insertStatement->data);
         if(serializeRes != ExecuteResult::success) return serializeRes;
         table->increaseRowCount();
-        tableEnd.addedChangesToCommit();
+        cursor.addedChangesToCommit();
 
-        // TODO: Call B+ Tree to insert this row to index;
+        // if(!table->insertBTree(insertStatement->data, cursor.row))
         return ExecuteResult::success;
     }
 
@@ -192,21 +216,48 @@ private:
             }
         }
 
+        int32_t size = selectStatement->selectAllCols ? table->columnNames.size(): indices.size();
+        auto callback = [&](row_t row)->bool{
+            Cursor cursor(table.get());
+            cursor.row = row;
+            char* buffer = cursor.value();
+            std::vector<std::string> data(size);
+            bool deserializeRes = deserializeRow(buffer, table, indices, data, selectStatement->selectAllCols);
+            if(!deserializeRes) return false;
+            for(auto& str: data){
+                std::cout << str << " | ";
+            }
+            std::cout << std::endl;
+            return true;
+        };
+
         if(selectStatement->selectAllRows){
-            Cursor cursor = table->start();
-            int32_t size = selectStatement->selectAllCols? table->columnNames.size(): indices.size();
-            std::vector<std::string> row(size);
-            while(!cursor.endOfTable){
-                char* buffer = cursor.value();
-                bool deserializeRes = deserializeRow(buffer, table, indices, row, selectStatement->selectAllCols);
-                if(!deserializeRes) return ExecuteResult::unexpectedError;
-                for(auto& str: row){
-                    std::cout << str << " | ";
-                }
-                std::cout << std::endl;
-                ++cursor;
+
+        }
+        auto condition = std::move(selectStatement->condition);
+        int32_t index = table->columnIndex[condition.col];
+        if(condition.isCompound){
+
+        }
+        else{
+            switch(condition.compType1){
+                case ComparisonType::equal:
+                    table->bPlusTrees[index]
+                    break;
+                case ComparisonType::notEqual:
+                    break;
+                case ComparisonType::lessThan:
+                    break;
+                case ComparisonType::greaterThan:
+                    break;
+                case ComparisonType::lessThanOrEqual:
+                    break;
+                case ComparisonType::greaterThanOrEqual:
+                    break;
+                default: break;
             }
         }
+
         return ExecuteResult::success;
     }
 

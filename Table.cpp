@@ -25,6 +25,8 @@ Table::Table(std::string tableName, const std::string& fileName){
     this->numRows = 0;
     this->rowSize = 0;
     this->rowsPerPage = 0;
+    this->rowStackPtr = 0;
+    this->rowStackOffset = 0;
 }
 
 bool Table::createIndexPager(int32_t index, const std::string& fileName){
@@ -35,6 +37,7 @@ bool Table::createIndexPager(int32_t index, const std::string& fileName){
     catch(...){
         return false;
     }
+    return true;
 }
 
 Table::~Table(){
@@ -68,7 +71,8 @@ void Table::createColumns(std::vector<std::string>&& columnNames_, std::vector<D
 }
 
 void Table::createColumnIndex(){
-    for(int index = 0; index < columnNames.size(); ++index){
+    int32_t count = columnNames.size();
+    for(int index = 0; index < count; ++index){
         columnIndex[columnNames[index]] = index;
     }
 }
@@ -101,6 +105,13 @@ void Table::calculateRowInfo(){
         this->rowSize += size;
     }
     this->rowsPerPage = PAGE_SIZE/rowSize;
+    int32_t count = columnSizes.size();
+    this->indexed.assign(count, false);
+    this->stackPtr.assign(count, 0);
+    this->indexPagers.resize(count);
+    for(int32_t i = 0; i < count; ++i){
+        indexPagers[i] = nullptr;
+    }
 }
 
 void Table::serailizeColumnMetadata(char* buffer){
@@ -255,4 +266,11 @@ void Table::increaseRowCount() {
     char* buffer = page->buffer.get();
     memcpy(buffer, &numRows, sizeof(int64_t));
     page->hasUncommitedChanges = true;
+}
+
+bool Table::insertBTree(std::vector<std::string>& data, row_t row){
+    for(int i = 0; i < indexed.size(); ++i){
+        if(!indexed[i]) continue;
+        // TODO: Call insert in bPlusTrees[i]
+    }
 }

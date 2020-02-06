@@ -43,8 +43,14 @@ struct SearchResult {
     }
 };
 
+class BaseBPTree{
+public:
+    virtual ~BaseBPTree() = default;
+    virtual SearchResult<key_t> search(const key_t& key) = 0;
+};
+
 template <typename key_t>
-class BPTree{
+class BPTree: BaseBPTree{
     using Node      = BPTNode<key_t>;
     using result_t  = SearchResult<key_t>;
 
