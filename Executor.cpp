@@ -17,50 +17,50 @@ struct ErrorHandler{
     static void handleTableManagerError(const TableManagerResult& res){
         switch(res){
             case TableManagerResult::tableCreatedSuccessfully:
-                printf("Table Created Successfully\n");
+                printw("Table Created Successfully\n");
                 break;
             case TableManagerResult::tableAlreadyExists:
-                printf("This Table already exists\n");
+                printw("This Table already exists\n");
                 break;
             case TableManagerResult::tableCreationFaliure:
-                printf("Failed To Create Table\n");
+                printw("Failed To Create Table\n");
                 break;
             case TableManagerResult::tableNotFound:
-                printf("Table Not Found\n");
+                printw("Table Not Found\n");
                 break;
             case TableManagerResult::openingFaliure:
-                printf("Failed To Open Table\n");
+                printw("Failed To Open Table\n");
                 break;
             case TableManagerResult::closedSuccessfully:
-                printf("Closed Table Successfully\n");
+                printw("Closed Table Successfully\n");
                 break;
             case TableManagerResult::closingFaliure:
-                printf("Closed Table Successfully\n");
+                printw("Closed Table Successfully\n");
                 break;
             case TableManagerResult::droppingFaliure:
-                printf("Error Dropping Table\n");
+                printw("Error Dropping Table\n");
                 break;
             case TableManagerResult::openedSuccessfully:
                 break;
             case TableManagerResult::droppedSuccessfully:
                 break;
             default:
-                printf("Unknown Error Occurred\n");
+                printw("Unknown Error Occurred\n");
                 break;
         }
     }
 
     static void handleTableMismatchError(int32_t actualSize, int32_t expectedSize){
-        printf("Number of values provided does not match number of columns\n"
+        printw("Number of values provided does not match number of columns\n"
                "Expected %d value(s). Got %d value(s)\n", expectedSize, actualSize);
     }
 
     static void indexCreationError(const std::string& colName){
-        printf("Failed to create index on %s\n", colName.c_str());
+        printw("Failed to create index on %s\n", colName.c_str());
     }
 
     static void indexCreationSuccessful(const std::string& colName){
-        printf("Successfully created index on %s\n", colName.c_str());
+        printw("Successfully created index on %s\n", colName.c_str());
     }
 };
 
@@ -114,8 +114,10 @@ private:
 
         ErrorHandler::handleTableManagerError(res);
         if(res == TableManagerResult::tableCreatedSuccessfully){
+//            printw("Success Executing\n");
             return ExecuteResult::success;
         }
+//        printw("Faliure Executing\n");
         return ExecuteResult::faliure;
     }
 
@@ -150,6 +152,7 @@ private:
     ExecuteResult executeInsert(std::unique_ptr<QueryStatement>& statement){
         std::shared_ptr<Table> table;
         auto res = sharedManager->open(statement->tableName, table);
+
         if(res != TableManagerResult::openedSuccessfully) {
             return ExecuteResult::faliure;
         }

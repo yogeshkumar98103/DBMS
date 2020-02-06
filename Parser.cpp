@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <ncurses.h>
 #include "HeaderFiles/DataTypes.h"
 #include "HeaderFiles/Table.h"
 #include "HeaderFiles/TableManager.h"
@@ -361,7 +362,7 @@ private:
             // Get String
             if(sscanf(ptr, "%255[^ \t\n,}]%n", colName, &n) != 1) return PrepareResult::syntaxError;
             ptr += n;
-            printf("Indexing On: %s\n", colName);
+            printw("Indexing On: %s\n", colName);
             colNames.emplace_back(colName);
             if(!getSeperator(&ptr, seperator)) return PrepareResult::syntaxError;
             if(seperator[0] == ',') continue;
@@ -392,7 +393,7 @@ private:
                 if(data.empty()) return PrepareResult::noInsertData;
                 return PrepareResult::syntaxError;
             }
-            printf("Parsed Field : \"%s\"\n", field);
+            printw("Parsed Field : \"%s\"\n", field);
 
             data.emplace_back(field);
 
@@ -443,7 +444,7 @@ private:
             ++col;
             colNames.emplace_back(colName);
             colValues.emplace_back(colValue);
-            printf("Parsed Column: \"%s\" | Value: \"%s\"\n", colName, colValue);
+            printw("Parsed Column: \"%s\" | Value: \"%s\"\n", colName, colValue);
 
             // Get Column Seperator ',' or '}'
             if(!getSeperator(&ptr, seperator)) return PrepareResult::syntaxError;
@@ -547,7 +548,7 @@ private:
                 }
 
                 colNames.emplace_back(colName);
-                printf("Parsed Column: \"%s\"\n", colName);
+                printw("Parsed Column: \"%s\"\n", colName);
 
                 // Get Column Seperator ',' or '}'
                 if (!getSeperator(&ptr, keyword)) return PrepareResult::syntaxError;
@@ -581,10 +582,10 @@ private:
         char op1[3], op2[3];
         char combineOperator[3];
         int count = sscanf(ptr, "%[^><=!& ] %2[><=!] %2[^&] %[&] %[^><=!& ] %2[><=!] %[^&\n] ", col1, op1, val1, combineOperator,col2, op2, val2);
-        // printf("%d\n", count);
-        // printf("\"%s\"  \"%s\"  \"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"\n", col1, op1 ,val1, combineOperator, col2, op2, val2);
+        // printw("%d\n", count);
+        // printw("\"%s\"  \"%s\"  \"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"\n", col1, op1 ,val1, combineOperator, col2, op2, val2);
         if(count == 3){
-            // printf("\"%s\"  \"%s\"  \"%s\"\n", col1, op1 ,val1);
+            // printw("\"%s\"  \"%s\"  \"%s\"\n", col1, op1 ,val1);
             cond.isCompound = false;
             cond.col = col1;
             cond.data1 = val1;
@@ -594,7 +595,7 @@ private:
             }
         }
         else if(count == 7){
-            // printf("\"%s\"  \"%s\"  \"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"\n", col1, op1 ,val1, combineOperator, col2, op2, val2);
+            // printw("\"%s\"  \"%s\"  \"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"\n", col1, op1 ,val1, combineOperator, col2, op2, val2);
             cond.isCompound = true;
             if(strcmp(col1, col2) != 0){
                 return PrepareResult::comparisonOnDifferentRows;

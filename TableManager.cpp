@@ -3,7 +3,7 @@
 //
 
 #include "HeaderFiles/TableManager.h"
-#include <iostream>
+#include <ncurses.h>
 
 TableManager::TableManager(std::string baseURL_):baseURL(std::move(baseURL_)){
     // Create Directory if it doesn't exist
@@ -55,6 +55,7 @@ TableManagerResult TableManager::create(const std::string& tableName,
     try{
         table = std::make_shared<Table>(tableName, getFileName(tableName, TableFileType::baseTable));
     }catch(...){
+//        printw("Faliure Allocation Table");
         return TableManagerResult::tableCreationFaliure;
     }
 
@@ -105,10 +106,8 @@ void TableManager::flushAll(){
     for(auto& table: tableMap){
         if(table.second != nullptr && table.second->tableOpen){
             table.second->pager->flushAll();
-            table.second.reset();
         }
     }
-    tableMap.clear();
 }
 
 bool TableManager::createIndex(std::shared_ptr<Table>& table, int32_t index){

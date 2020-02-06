@@ -90,7 +90,9 @@ Page* Pager::read(uint32_t pageNum){
 /// This flushes the given page to storage if it is open
 bool Pager::flush(uint32_t pageNum){
     if(this->fileDescriptor == -1) return false;
-    if(pageNum == 0) flushPage(header.get());
+    if(pageNum == 0){
+        return flushPage(header.get());
+    }
     if(pageMap.find(pageNum) == pageMap.end()){
         // Page Not Loaded Yet
         printf("Tried To write page which is not read: %d\n", errno);

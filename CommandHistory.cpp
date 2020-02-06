@@ -71,12 +71,15 @@ class CommandInput{
 		commandHistory.enterKeyCommand(command);
 		printw("db> %s\n", command.c_str());
         printw("\rdb> ");
+        fflush(stdin);
         inputBuffer.buffer = command;
+        command.clear();
         if(inputBuffer.isMetaCommand()){
             switch(inputBuffer.performMetaCommand()){
                 case MetaCommandResult::exit:
                     executor.sharedManager->closeAll();
                     printw("Exited Successfully\n");
+                    endwin();
                     exit(EXIT_SUCCESS);
 
                 case MetaCommandResult::flush:
@@ -183,7 +186,9 @@ public:
 
 	void handleKeys(int character){
 		switch(character){
-			case 65: // UP key
+			case '\033': // UP key
+			getch();
+			getch();
 			upKeyPressed();
 			break; 
 			case 66: // DOWN key

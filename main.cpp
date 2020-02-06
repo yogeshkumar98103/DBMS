@@ -13,7 +13,7 @@ void sigintHandler(int sig_num)
 }
 
 int main() {
-    signal(SIGINT, sigintHandler);
+//    signal(SIGINT, sigintHandler);
     CommandInput commandInput;
     int c;
     initscr();
