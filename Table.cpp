@@ -163,7 +163,6 @@ void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
 
     memcpy(&this->numRows, metadataBuffer + offset, sizeof(row_t));
     offset += sizeof(row_t);
-
     memcpy(&size, metadataBuffer + offset, sizeof(int32_t));
     offset += sizeof(int32_t);
 
@@ -188,6 +187,7 @@ void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
         columnTypes.emplace_back(colType);
         offset += sizeof(DataType);
     }
+
     memcpy(&rowStackPtr, (metadataBuffer + offset), sizeof(int32_t));
     rowStackOffset = offset + sizeof(int32_t);
 }
@@ -214,7 +214,7 @@ row_t Table::nextFreeIndexLocation(int32_t index){
     char* buffer = page->buffer.get();
     int32_t offset = (stackPtr[index] - 1) * sizeof(row_t) + sizeof(int32_t);
     row_t nextRow;
-    memcpy(&nextRow, buffer + offset, sizeof(int32_t));
+    memcpy(&nextRow, buffer + offset, sizeof(row_t));
     stackPtr[index]--;
     memcpy(buffer, &stackPtr[index], sizeof(int32_t));
     return nextRow;
@@ -226,7 +226,7 @@ row_t Table::nextFreeRowLocation(){
     char* buffer = page->buffer.get();
     int32_t offset = (rowStackPtr - 1) * sizeof(row_t) + rowStackOffset;
     row_t nextRow;
-    memcpy(&nextRow, buffer + offset, sizeof(int32_t));
+    memcpy(&nextRow, buffer + offset, sizeof(row_t));
     rowStackPtr--;
     memcpy(buffer, &rowStackPtr, sizeof(int32_t));
     return nextRow;
@@ -264,7 +264,7 @@ void Table::increaseRowCount() {
     this->numRows++;
     Page* page = pager->header.get();
     char* buffer = page->buffer.get();
-    memcpy(buffer, &numRows, sizeof(int64_t));
+    memcpy(buffer, &numRows, sizeof(row_t));
     page->hasUncommitedChanges = true;
 }
 

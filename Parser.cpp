@@ -7,10 +7,12 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
-#include <ncurses.h>
+//#include <ncurses.h>
+#include "HeaderFiles/Constants.h"
 #include "HeaderFiles/DataTypes.h"
 #include "HeaderFiles/Table.h"
 #include "HeaderFiles/TableManager.h"
+#include "Interface.cpp"
 
 #define MAX_FIELD_SIZE 512
 #define MAX_TABLE_NAME_LEN 50

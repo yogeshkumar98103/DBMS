@@ -183,9 +183,9 @@ private:
         std::shared_ptr<Table> table;
         auto res = sharedManager->open(statement->tableName, table);
         if(res != TableManagerResult::openedSuccessfully) {
+            ErrorHandler::handleTableManagerError(res);
             return ExecuteResult::faliure;
         }
-
         auto selectStatement = dynamic_cast<SelectStatement*>(statement.get());
 
         std::vector<int32_t> indices;
@@ -214,29 +214,29 @@ private:
         if(selectStatement->selectAllRows){
 
         }
-        auto condition = std::move(selectStatement->condition);
-        int32_t index = table->columnIndex[condition.col];
-        if(condition.isCompound){
-
-        }
-        else{
-            switch(condition.compType1){
-                case ComparisonType::equal:
-//                    table->bPlusTrees[index]
-                    break;
-                case ComparisonType::notEqual:
-                    break;
-                case ComparisonType::lessThan:
-                    break;
-                case ComparisonType::greaterThan:
-                    break;
-                case ComparisonType::lessThanOrEqual:
-                    break;
-                case ComparisonType::greaterThanOrEqual:
-                    break;
-                default: break;
-            }
-        }
+//        auto condition = std::move(selectStatement->condition);
+//        int32_t index = table->columnIndex[condition.col];
+//        if(condition.isCompound){
+//
+//        }
+//        else{
+//            switch(condition.compType1){
+//                case ComparisonType::equal:
+////                    table->bPlusTrees[index]
+//                    break;
+//                case ComparisonType::notEqual:
+//                    break;
+//                case ComparisonType::lessThan:
+//                    break;
+//                case ComparisonType::greaterThan:
+//                    break;
+//                case ComparisonType::lessThanOrEqual:
+//                    break;
+//                case ComparisonType::greaterThanOrEqual:
+//                    break;
+//                default: break;
+//            }
+//        }
 
         return ExecuteResult::success;
     }

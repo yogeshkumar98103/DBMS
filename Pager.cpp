@@ -7,7 +7,7 @@ Pager::Pager(const char* fileName, int pageLimit_): pageLimit(pageLimit_){
     if(!this->open(fileName)){
         throw std::runtime_error("Unable to Open Table");
     }
-    this->header = std::make_unique<Page>();
+    this->getHeader();
 }
 
 Pager::~Pager(){
@@ -46,6 +46,21 @@ bool Pager::close(){
 /// This return the asked page from opened file
 /// You have to manually look for required table row or other information in the logic that calls this function.
 /// pageNum is 0 indexed
+bool Pager::getHeader(){
+    header = std::make_unique<Page>();
+    this->fileLength = static_cast<uint32_t>(lseek(fileDescriptor, 0, SEEK_END));
+    this->maxPages = (this->fileLength + PAGE_SIZE - 1) / PAGE_SIZE;
+    if(maxPages > 0){
+        lseek(fileDescriptor, 0, SEEK_SET);
+        ssize_t bytesRead = ::read(fileDescriptor, header->buffer.get(), PAGE_SIZE);
+        if(bytesRead == -1){
+            printf("Error reading Header: %d\n", errno);
+            return false;
+        }
+    }
+    return true;
+}
+
 Page* Pager::read(uint32_t pageNum){
     if(this->fileDescriptor == -1) return nullptr;
     if(pageNum == 0) return this->header.get();

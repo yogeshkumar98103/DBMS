@@ -36,6 +36,7 @@ TableManagerResult TableManager::open(const std::string& tableName, std::shared_
             table->loadMetadata();
         }
         catch(...){
+            printw("Table Opening Faliure\n");
             return TableManagerResult::openingFaliure;
         }
         tableMap[tableName] = table;

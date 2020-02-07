@@ -53,6 +53,7 @@ public:
     ~Pager();
 
     int64_t getFileLength();
+    bool getHeader();
     bool close();
     bool flush(uint32_t pageNum);
     bool flushPage(Page* page);
