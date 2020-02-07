@@ -11,12 +11,12 @@ class CommandHistory{
 	int positionInDeq; 
 	friend class CommandInput;
 
-	CommandHistory(int maxHistorySize_){
+	explicit CommandHistory(int maxHistorySize_){
 		maxHistorySize = maxHistorySize_;
 		positionInDeq = -1;
 	}	
 
-	void insertIntoCommandsList(std::string command){
+	void insertIntoCommandsList(const std::string& command){
 		commandsList.push_front(command);
 	    if(commandsList.size() > maxHistorySize) 
 	        commandsList.pop_back();
@@ -38,7 +38,7 @@ class CommandHistory{
         return "";
 	}
 
-	void enterKeyCommand(std::string command){
+	void enterKeyCommand(const std::string& command){
 		if(command.compare(""))
         	insertIntoCommandsList(command);
         positionInDeq = -1;
@@ -48,6 +48,7 @@ class CommandHistory{
 
 class CommandInput{
 	std::string command;
+	int positionInCommand;
 	InputBuffer inputBuffer;
     Parser parser;
     Executor executor;
@@ -67,6 +68,13 @@ class CommandInput{
 		printw("\rdb> %s", commandHistory.downCommand().c_str());
 	}
 
+    void rightKeyPressed(){
+
+	}
+
+    void leftKeyPressed(){
+
+    }
 
 	void enterKeyPressed(){
 		commandHistory.enterKeyCommand(command);
@@ -179,31 +187,41 @@ class CommandInput{
 	}
 
 public:
-    CommandInput():executor("./MyDatabase"), commandHistory(20){}
+    CommandInput():executor("./MyDatabase"), commandHistory(20), positionInCommand(0){}
 	inline void initialize(){
 
 		printw("Welcome\ndb> ");
 	}
 
 	void handleKeys(int character){
+	    int temp;
 		switch(character){
-			case '\033': // UP key
-			getch();
-			getch();
-			upKeyPressed();
-			break; 
-			case 66: // DOWN key
-			downKeyPressed();
-			break; 
+			case '\033':
+                getch();
+                temp = getch();
+                if(temp == 65){
+                    upKeyPressed();     // UP key
+                }
+                else if(temp == 66){
+                    downKeyPressed();   // DOWN key
+                }
+                else if(temp == 67){
+                    rightKeyPressed();   // RIGHT KEY
+                }
+                else if(temp == 68){
+                    leftKeyPressed();   // LEFT KEY
+                }
+
+                break;
 			case 127: // BACKSPACE key
-			backKeyPressed();
-			break; 
+                backKeyPressed();
+                break;
 			case 10: // ENTER key
-			enterKeyPressed();
-			break;
+                enterKeyPressed();
+                break;
 			default:
-			defaultKey(character);
-			break;  
+                defaultKey(character);
+                break;
 		}	
 	}
 
