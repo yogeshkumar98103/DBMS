@@ -3,7 +3,7 @@
 //
 
 #include "HeaderFiles/BTree.h"
-
+#include "HeaderFiles/Constants.h"
 template <>
 int convert(const std::string& str){
     return std::stoi(str);
@@ -245,20 +245,18 @@ void BPTree<key_t>::removeWithKey(const key_t& key){
         }
 
         int countCanDelete = searchRes.node->size - (branchingFactor-1);
-        
-        
 
      }
 
 // MARK:- HELPER FUNCTIONS
 
-
-//    void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete){
-//        for(int i = index; i < leaf->size-1; ++i){
-//            leaf->keys[i] = leaf->keys[i+countToDelete];
-//        }
-//        leaf->size-=countToDelete;
-//    }
+template <typename key_t>
+void removeMultipleAtLeaf(BPTNode<key_t>* leaf, int startIndex, int countToDelete){
+    for(int i = index; i < leaf->size-1; ++i){
+        leaf->keys[i] = leaf->keys[i+countToDelete];
+    }
+    leaf->size-=countToDelete;
+}
 
 template <typename key_t>
 SearchResult<key_t> BPTree<key_t>::searchUtil(const keyRNPair& key){
@@ -322,7 +320,7 @@ int BPTree<key_t>::binarySearch(Node* node, const keyRNPair& key) {
 
     while(l <= r) {
         mid = (l+r)/2;
-        if(key <= node->keys[mid]) {
+        if(key <= node->keys[mid]){
             r = mid-1;
             ans = mid;
         }
@@ -611,101 +609,101 @@ void BPTree<key_t>::iterateRightLeaf(Node* node, int startIndex){
 // }
 
 
-//void BPTreeTest(){
-//    BPTree<key_t><int> bt(2);
-//    bt.insert({10,1});
+void BPTreeTest(){
+   BPTree<int> bt(2);
+   bt.insert({10,1});
+   bt.bfsTraverse();
+   bt.insert({20,2});
+   bt.bfsTraverse();
+   bt.insert({5,3});
+   bt.bfsTraverse();
+   bt.insert({15,4});
+   bt.bfsTraverse();
+   bt.insert({11,5});
+   bt.bfsTraverse();
+//    bt.insert({21,6});
 //    bt.bfsTraverse();
-//    bt.insert({20,2});
+//    bt.insert({51,6});
 //    bt.bfsTraverse();
-//    bt.insert({5,3});
+//    bt.insert({17,7});
 //    bt.bfsTraverse();
-//    bt.insert({15,4});
-//    bt.bfsTraverse();
-//    bt.insert({11,5});
-//    bt.bfsTraverse();
-////    bt.insert({21,6});
-////    bt.bfsTraverse();
-////    bt.insert({51,6});
-////    bt.bfsTraverse();
-////    bt.insert({17,7});
-////    bt.bfsTraverse();
-//    bt.insert({71,5});
-//    bt.bfsTraverse();
-//    bt.insert({71,6});
-//    bt.bfsTraverse();
-//    bt.insert({71,7});
-//    bt.bfsTraverse();
-//    bt.insert({71,8});
-//    bt.bfsTraverse();
-//    bt.insert({71,9});
-//    bt.bfsTraverse();
-//    bt.insert({11,10});
-//    bt.bfsTraverse();
-//    bt.insert({10,11});
-//    bt.bfsTraverse();
-//
-//    std::cout << "Insert done" << std::endl;
-//
-//     // std::cout << bt.remove(71) << std::endl;
-//     // bt.bfsTraverse();
-//     // std::cout << bt.remove(21) << std::endl;
-//     // bt.bfsTraverse();
-//     // std::cout << bt.remove(51) << std::endl;
-//     // bt.bfsTraverse();
-//     // std::cout << bt.remove(11) << std::endl;
-//     // bt.bfsTraverse();
-//     // bt.insert(11);
-//     // bt.bfsTraverse();
-////     auto searchRes = bt.searchUtil({15,-1});
-////     std::cout << searchRes.node << std::endl;
-////     std::cout << searchRes.index << std::endl;
-//    //bt.iterateRightLeaf(searchRes.node, searchRes.index);
-//
-//    // bt.smallerThanEquals(11);
-//    // bt.smallerThan(11);
-//    // bt.greaterThanEquals(11);
-//    // bt.greaterThan(11);
-//    // bt.smallerThanEquals(12);
-//    // bt.smallerThan(12);
-//    // bt.greaterThanEquals(12);
-//    // bt.greaterThan(12);
-//    // bt.smallerThanEquals(71);
-//    // bt.smallerThan(71);
-//    // bt.greaterThanEquals(71);
-//    // bt.greaterThan(71);
-//    // bt.smallerThanEquals(20);
-//    // bt.smallerThan(20);
-//    // bt.greaterThanEquals(20);
-//    // bt.greaterThan(20);
-//    // bt.smallerThanEquals(4);
-//    // bt.smallerThan(4);
-//    // bt.greaterThanEquals(4);
-//    // bt.greaterThan(4);
-//    // bt.smallerThanEquals(100);
-//    // bt.smallerThan(100);
-//    // bt.greaterThanEquals(100);
-//    // bt.greaterThan(100);
-//
-////   std::cout<<bt.search("4")<<std::endl;
-////   std::cout<<bt.search("20")<<std::endl;
-//
-//    //  bt.bfsTraverse();
-//     bt.remove({20,2});
-//     bt.bfsTraverse();
-//     bt.insert({71,10});
-//     bt.bfsTraverse();
-//     bt.remove({71,9});
-//     bt.bfsTraverse();
-////     std::cout<<bt.search(71)<<std::endl;
-////     bt.traverseAllWithKey(12);
-//    //  std::cout << bt.remove(5) << std::endl;
-//    //  bt.bfsTraverse();
-//
-//    // bt.smallerThan(11);
-//    // bt.greaterThan(17);
-//}
-//
-////int main(){
-////    BPTreeTest();
-////    return 0;
-////}
+   bt.insert({71,5});
+   bt.bfsTraverse();
+   bt.insert({71,6});
+   bt.bfsTraverse();
+   bt.insert({71,7});
+   bt.bfsTraverse();
+   bt.insert({71,8});
+   bt.bfsTraverse();
+   bt.insert({71,9});
+   bt.bfsTraverse();
+   bt.insert({11,10});
+   bt.bfsTraverse();
+   bt.insert({10,11});
+   bt.bfsTraverse();
+
+   std::cout << "Insert done" << std::endl;
+
+    // std::cout << bt.remove(71) << std::endl;
+    // bt.bfsTraverse();
+    // std::cout << bt.remove(21) << std::endl;
+    // bt.bfsTraverse();
+    // std::cout << bt.remove(51) << std::endl;
+    // bt.bfsTraverse();
+    // std::cout << bt.remove(11) << std::endl;
+    // bt.bfsTraverse();
+    // bt.insert(11);
+    // bt.bfsTraverse();
+    // auto searchRes = bt.searchUtil({15,-1});
+    // std::cout << searchRes.node << std::endl;
+    // std::cout << searchRes.index << std::endl;
+    // bt.iterateRightLeaf(searchRes.node, searchRes.index);
+
+   // bt.smallerThanEquals(11);
+   // bt.smallerThan(11);
+   // bt.greaterThanEquals(11);
+   // bt.greaterThan(11);
+   // bt.smallerThanEquals(12);
+   // bt.smallerThan(12);
+   // bt.greaterThanEquals(12);
+   // bt.greaterThan(12);
+   // bt.smallerThanEquals(71);
+   // bt.smallerThan(71);
+   // bt.greaterThanEquals(71);
+   // bt.greaterThan(71);
+   // bt.smallerThanEquals(20);
+   // bt.smallerThan(20);
+   // bt.greaterThanEquals(20);
+   // bt.greaterThan(20);
+   // bt.smallerThanEquals(4);
+   // bt.smallerThan(4);
+   // bt.greaterThanEquals(4);
+   // bt.greaterThan(4);
+   // bt.smallerThanEquals(100);
+   // bt.smallerThan(100);
+   // bt.greaterThanEquals(100);
+   // bt.greaterThan(100);
+
+//   std::cout<<bt.search("4")<<std::endl;
+//   std::cout<<bt.search("20")<<std::endl;
+
+   //  bt.bfsTraverse();
+    bt.remove({20,2});
+    bt.bfsTraverse();
+    bt.insert({71,10});
+    bt.bfsTraverse();
+    bt.remove({71,9});
+    bt.bfsTraverse();
+//     std::cout<<bt.search(71)<<std::endl;
+//     bt.traverseAllWithKey(12);
+   //  std::cout << bt.remove(5) << std::endl;
+   //  bt.bfsTraverse();
+
+   // bt.smallerThan(11);
+   // bt.greaterThan(17);
+}
+
+int main(){
+   BPTreeTest();
+   return 0;
+}

@@ -91,7 +91,7 @@ public:
 
 private:
     // MARK:- HELPER FUNCTIONS
-//    void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete);
+   void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete);
 
     result_t searchUtil(const keyRNPair& key);
 
