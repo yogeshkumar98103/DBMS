@@ -11,4 +11,13 @@ const int DEFAULT_PAGE_LIMIT = 20;
 
 using row_t = int32_t;
 
+#ifndef LLONG_MAX
+#define LLONG_MAX 9223372036854775807LL
+#endif
+
+#ifndef SIGINT
+#define SIGINT 2
+#endif
+
+
 #endif //DBMS_CONSTANTS_H

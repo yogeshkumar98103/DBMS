@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <ncurses.h>
 #include "CommandHistory.cpp"
+#include <signal.h>
 
 void sigintHandler(int sig_num)
 {
@@ -16,8 +17,11 @@ int main() {
 //    signal(SIGINT, sigintHandler);
     CommandInput commandInput;
     int c;
-    initscr();
-    commandInput.initialize();
+    WINDOW* win;
+    win = initscr();
+//    scrollok(win,TRUE);
+    noecho();
+    commandInput.initialize(win);
     while(true){
         c = getch();
         commandInput.handleKeys(c);

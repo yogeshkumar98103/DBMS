@@ -46,42 +46,74 @@ class CommandHistory{
 
 
 class CommandInput{
-	std::string command;
+    std::string commandToTheRight;
+    std::string command;
 	int positionInCommand;
 	InputBuffer inputBuffer;
     Parser parser;
     Executor executor;
     CommandHistory commandHistory;
+    WINDOW* win;
 
 	void clearLine(){
 		printw("\r");
 		clrtoeol();
 	}
+
+    void printRightCommand(){
+        int currentLine=0, currentPositionInLine=1;
+        getyx(win, currentLine, currentPositionInLine);
+        printw("%s", commandToTheRight.c_str());
+        move(currentLine, currentPositionInLine);
+    }
+
 	void upKeyPressed(){
 		clearLine();
-		printw("\rdb> %s", commandHistory.lastCommand().c_str());
+        command = commandHistory.lastCommand();
+        positionInCommand = command.size();
+		printw("\rdb> %s", command.c_str());
 	}
 
 	void downKeyPressed(){
 		clearLine();
-		printw("\rdb> %s", commandHistory.downCommand().c_str());
+        command = commandHistory.downCommand();
+        positionInCommand = command.size();
+		printw("\rdb> %s", command.c_str());
 	}
 
     void rightKeyPressed(){
-
+        //TODO: Handle right key pressed on cmd
+        int currentLine=0, currentPositionInLine=1;
+        getyx(win, currentLine, currentPositionInLine);
+        // printw("%d\n", positionInCommand);
+        if(positionInCommand < command.size()){
+            commandToTheRight.erase(0,1);
+            move(currentLine, currentPositionInLine+1);
+            positionInCommand++;
+        }
 	}
 
     void leftKeyPressed(){
-
+        //TODO: Handle left key pressed on cmd
+        //printw("\b\b\b\b");
+        int currentLine=0, currentPositionInLine=1;
+        getyx(win, currentLine, currentPositionInLine);
+        if(positionInCommand > 0){
+            move(currentLine, currentPositionInLine-1);
+            positionInCommand--;
+            std::string st(1,command[positionInCommand]); 
+            commandToTheRight.insert(0,st);
+        }
+        
     }
 
 	void enterKeyPressed(){
 		commandHistory.enterKeyCommand(command);
-		printw("db> %s\n", command.c_str());
-        printw("\rdb> ");
-        fflush(stdin);
+        printw("\rdb> %s\n", command.c_str());
+        // printw("\n");
+		// printw("db> %s\n", command.c_str());
+        // printw("REPly of the statment\n");
         inputBuffer.buffer = command;
-        command.clear();
         if(inputBuffer.isMetaCommand()){
             switch(inputBuffer.performMetaCommand()){
                 case MetaCommandResult::exit:
@@ -170,25 +202,58 @@ class CommandInput{
                 printw("Unexpected Error occured\n");
                 break;
         }
+        // printw("My name is\n");
+        // printw("Helloo\n");
+        printw("\rdb> ");
+        command.clear();
+        commandToTheRight.clear();
+        positionInCommand = 0; 
+    //    printw("%d ",scrl(1));
 	}
 
 	void backKeyPressed(){
-		if(!command.empty()){
-            command.pop_back();
+		      
+        if(positionInCommand > 0){
+            command.erase(--positionInCommand,1);
             printw("\b");
         }
-    	printw("\b\b");
     	clrtoeol();
+        
+        if(commandToTheRight.size() > 0){
+            int currentLine=0, currentPositionInLine=1;
+            getyx(win, currentLine, currentPositionInLine);
+            printw("%s", commandToTheRight.c_str());
+            move(currentLine, currentPositionInLine);
+        }
 	}
 
+    void deleteKeyPressed() {
+        if(positionInCommand < command.size()){
+            command.erase(positionInCommand,1);
+            commandToTheRight.erase(0,1);
+            clrtoeol();
+            printRightCommand();
+        }
+    }
+
 	void defaultKey(int character){
-		command += (char)character;
+        std::string characterString(1,character); 
+        command.insert(positionInCommand, characterString);
+        positionInCommand++;
+        
+        
+        printw("%c", character);
+        if(commandToTheRight.size() > 0){
+            printRightCommand();
+        }
+
+		// command += (char)character;
 	}
 
 public:
-    CommandInput():executor("./MyDatabase"), commandHistory(20), positionInCommand(0){}
-	inline void initialize(){
-
+    CommandInput():commandHistory(20), positionInCommand(0){}
+	inline void initialize(WINDOW* win_){
+        win = win_;
 		printw("Welcome\ndb> ");
 	}
 
@@ -210,13 +275,15 @@ public:
                 else if(temp == 68){
                     leftKeyPressed();   // LEFT KEY
                 }
-
                 break;
 			case 127: // BACKSPACE key
                 backKeyPressed();
                 break;
 			case 10: // ENTER key
                 enterKeyPressed();
+                break;
+            case '~': // ENTER key
+                deleteKeyPressed();
                 break;
 			default:
                 defaultKey(character);
