@@ -3,72 +3,34 @@
 //
 
 #include "HeaderFiles/BTree.h"
-#include "HeaderFiles/Constants.h"
+
+template <typename key_t> int32_t BPTNode<key_t>::pKeyOffset = P_KEY_OFFSET(sizeof(key_t));
+template <typename key_t> int32_t BPTNode<key_t>::childOffset = P_KEY_OFFSET(sizeof(key_t));
 
 // CONVERT TEMPLATE SECIALIZATION
-template <> int convert(const std::string& str)  {  return std::stoi(str);  }
-template <> char convert(const std::string& str) {  return str[0];          }
-template <> bool convert(const std::string& str) {  return str == "true";   }
-template <> float convert(const std::string& str){  return std::stof(str);  }
+template <> inline int convertDataType<int>(const std::string& str)    {  return std::stoi(str);  }
+template <> inline char convertDataType<char>(const std::string& str)  {  return str[0];          }
+template <> inline bool convertDataType<bool>(const std::string& str)  {  return str == "true";   }
+template <> inline float convertDataType<float>(const std::string& str){  return std::stof(str);  }
+template <> inline dbms::string convertDataType<dbms::string>(const std::string& str){  return dbms::string(str);  }
 
 template <typename key_t>
-BPTree<key_t>::BPTree(const char* filename, int branchingFactor_):manager(filename){
+BPTree<key_t>::BPTree(const char* filename, int32_t branchingFactor_, int32_t keySize_):manager(filename, branchingFactor_, keySize_){
     this->branchingFactor = branchingFactor_;
+    this->keySize = keySize_;
 }
 
 
 // ------------------------ GETTERS AND SETTERS ------------------------
 template <typename key_t>
-BPTNode<key_t>* BPTNode<key_t>::getChildNode(int32_t index){
-    int32_t offset = childOffset + index * sizeof(row_t);
-    row_t childRow = 0;
-    memcpy(&childRow, buffer.get() + offset, sizeof(row_t));
-    return nodeManager->read(childRow);
+BPTNode<key_t>* BPTNode<key_t>::getChildNode(manager_t& manager, int32_t index){
+    return manager.read(child[index]);
 }
-
-row_t BPTNode<key_t>::getChildRow(int32_t index){
-    int32_t offset = childOffset + index * sizeof(row_t);
-    row_t childRow = 0;
-    memcpy(&childRow, buffer.get() + offset, sizeof(row_t));
-    return childRow;
-}
-
-template <typename key_t>
-std::pair<key_t, pkey_t> BPTNode<key_t>::getKey(int32_t index){
-    int32_t offset = BPTNodeHeaderSize + index * nodeManager->keySize;
-    key_t key = 0;
-    pkey_t pkey = 0;
-    memcpy(&key, buffer.get() + offset, sizeof(key_t));
-    offset += sizeof(key_t);
-    memcpy(&pkey, buffer.get() + offset, sizeof(pkey_t));
-    return std::make_pair(key, pkey);
-}
-
-template <typename key_t>
-void BPTNode<key_t>::setChild(int32_t index, Node* child){
-    int32_t offset = childOffset + index * sizeof(row_t);
-    memcpy(buffer.get() + offset, &child->pageNum, sizeof(row_t));
-}
-
-template <typename key_t>
-void BPTNode<key_t>::setChild(int32_t index, row_t pageNum){
-    int32_t offset = childOffset + index * sizeof(row_t);
-    memcpy(buffer.get() + offset, &pageNum, sizeof(row_t));
-}
-
-template <typename key_t>
-void BPTNode<key_t>::setKey(int32_t index, const std::pair<key_t, pkey_t>& key){
-    int32_t offset = BPTNodeHeaderSize + index * nodeManager->keySize;
-    memcpy(buffer.get() + offset, &key.first, sizeof(key_t));
-    offset += sizeof(key_t);
-    memcpy(buffer.get() + offset, &key.second, sizeof(pkey_t));
-}
-
 
 // ------------------------ READ / WRITE HEADER ------------------------
 template<typename key_t>
 void BPTNode<key_t>::writeHeader() {
-    char* buffer = this->buffer->get();
+    char* buffer = this->buffer.get();
     int32_t offset = 0;
 
     memcpy(buffer + offset, &isLeaf, sizeof(isLeaf));
@@ -82,8 +44,8 @@ void BPTNode<key_t>::writeHeader() {
 }
 
 template<typename key_t>
-void BPTNode<key_t>::readHeader() {
-    char* buffer = this->buffer->get();
+void inline BPTNode<key_t>::readHeader(int32_t maxSize, int32_t keySize) {
+    char* buffer = this->buffer.get();
     int32_t offset = 0;
 
     memcpy(&isLeaf, buffer + offset, sizeof(isLeaf));
@@ -96,15 +58,36 @@ void BPTNode<key_t>::readHeader() {
     offset += sizeof(row_t);
 }
 
+template<typename key_t>
+void inline BPTNode<key_t>::allocate(int32_t maxSize, int32_t keySize){
+    char* buffer = this->buffer.get();
+    keys = new(buffer + BPTNodeHeaderSize) key_t[maxSize];
+    pkeys = new(buffer + pKeyOffset) pkey_t[maxSize];
+    child = new(buffer + childOffset) row_t[maxSize + 1];
+}
+
+template<>
+void inline BPTNode<dbms::string>::allocate(int32_t maxSize, int32_t keySize){
+    char* buffer = this->buffer.get();
+    keys = new dbms::string[size];
+    for(int i = 0; i < maxSize; ++i){
+        keys[i].setBuffer(buffer + BPTNodeHeaderSize + keySize * i, keySize);
+    }
+    pkeys = new(buffer + pKeyOffset) pkey_t[maxSize];
+    child = new(buffer + childOffset) row_t[maxSize + 1];
+}
 
 // ------------------------ INSERT ------------------------
 template <typename key_t>
-bool BPTree<key_t>::insert(const std::string& keyStr, pkey_t pKey, row_t row) {
-    auto key = std::make_pair(convert<key_t>(keyStr), pKey);
+bool BPTree<key_t>::insert(const std::string& keyStr, pkey_t pkey, row_t row) {
+    auto key = convertDataType<key_t>(keyStr);
     auto root = manager.root.get();
-    if(root->size == 1){
-        root->setKey(0, key);
+    if(root->size == 0){
+        root->keys[0] = key;
+        root->pkeys[0] = pkey;
         root->isLeaf = true;
+        root->size++;
+        root->hasUncommitedChanges = true;
         return true;
     }
 
@@ -118,9 +101,8 @@ bool BPTree<key_t>::insert(const std::string& keyStr, pkey_t pKey, row_t row) {
     Node* child;
 
     while(!current->isLeaf) {
-        int indexFound = binarySearch(current, key);
-        //child = current->child[indexFound].get();
-        child = current->getChildNode(indexFound);
+        int indexFound = binarySearch(current, key, pkey);
+        child = current->getChildNode(manager, indexFound);
         if(child->size < maxSize){
             current = child;
             continue;
@@ -130,25 +112,29 @@ bool BPTree<key_t>::insert(const std::string& keyStr, pkey_t pKey, row_t row) {
         splitNode(current, child, indexFound);
 
         if(key <= current->keys[indexFound]) {
-            // current = current->child[indexFound].get();
-            current = current->getChildNode(indexFound);
+            current = current->getChildNode(manager, indexFound);
         }
         else{
-            // current = current->child[indexFound+1].get();
-            current = current->getChildNode(indexFound + 1);
+            current = current->getChildNode(manager, indexFound + 1);
         }
     }
 
     int insertAtIndex = 0;
     for(int i = current->size-1; i >= 0; --i){
-        if(key > current.getKey(i)){
+        if(key <= current->keys[i]){
+            current->keys[i+1] = current->keys[i];
+            current->pkeys[i+1] = current->pkeys[i];
+        }
+        else {
             insertAtIndex = i+1;
             break;
         }
     }
-    manager.shiftKeysRight(current, insertAtIndex);
+
     current->keys[insertAtIndex] = key;
+    current->pkeys[insertAtIndex] = pkey;
     current->size++;
+    current->hasUncommitedChanges = true;
     return true;
 }
 
@@ -170,12 +156,14 @@ void BPTree<key_t>::splitRoot(){
 
     // Copy right half keys to newNode
     int maxSize = 2*branchingFactor-1;
-    manager.copyKeys(newNode, 0, root, branchingFactor, branchingFactor - 2);
-    manager.copyChildren(newNode, 0, root, branchingFactor, branchingFactor - 2);
+    for(int i = branchingFactor; i < maxSize; ++i){
+        newNode->keys[i-branchingFactor]  = root->keys[i];
+        newNode->child[i-branchingFactor] = root->child[i];
+    }
 
-    newRoot->setKey(0, root->getKey(branchingFactor - 1));
-    newNode->setChild(branchingFactor-1, root->getChildRow(maxSize));
-    newNode->size = branchingFactor - 1;
+    newRoot->keys[0]  = root->keys[branchingFactor - 1];
+    newNode->size     = branchingFactor - 1;
+    newNode->child[branchingFactor-1] = root->child[maxSize];
 
     root->rightSibling_ = newNode->pageNum;
     newNode->leftSibling_ = root->pageNum;
@@ -187,10 +175,14 @@ void BPTree<key_t>::splitRoot(){
         root->size = branchingFactor;
     }
 
-    newRoot->setChild(1, newNode->pageNum);
-    newRoot->setChild(0, root->pageNum);
+    newRoot->child[1] = newNode->pageNum;
+    newRoot->child[0] = root->pageNum;
     manager.setRoot(newRoot);
     manager.root->isLeaf = false;
+
+    manager.root->hasUncommitedChanges = true;
+    newNode->hasUncommitedChanges = true;
+    newRoot->hasUncommitedChanges = true;
 }
 
 template <typename key_t>
@@ -198,78 +190,84 @@ void BPTree<key_t>::splitNode(Node* parent, Node* child, int indexFound){
     int maxSize = 2*branchingFactor - 1;
 
     // Shift keys right to accommodate a key from child
-    manager.shiftKeysRight(parent, indexFound);
-    manager.shiftChildRight(parent, indexFound + 1);
-    parent->setKey(indexFound, child->getKey(branchingFactor - 1));
+    for(int i = parent->size - 1; i >= indexFound; --i){
+        parent->keys[i+1]  = parent->keys[i];
+        parent->child[i+2] = parent->child[i+1];
+    }
+    parent->keys[indexFound] = child->keys[branchingFactor - 1];
 
     int32_t nextPageNo = manager.nextFreeIndexLocation();
-    auto newSibling = manager.read(nextPageNo);
+    Node* newSibling = manager.read(nextPageNo);
     newSibling->isLeaf = child->isLeaf;
 
     // Copy right half keys to newNode
-    manager.copyKeys(newSibling, 0 , child, branchingFactor, branchingFactor - 2);
-    manager.copyChildren(newSibling, 0 , child, branchingFactor, branchingFactor - 2);
-    newSibling->setChild(branchingFactor - 1, child->getChildRow(maxSize));
+    for(int i = branchingFactor; i < maxSize; ++i) {
+        newSibling->keys[i-branchingFactor]  = child->keys[i];
+        newSibling->child[i-branchingFactor] = child->child[i];
+    }
+    newSibling->child[branchingFactor-1] = child->child[maxSize];
 
     newSibling->size = branchingFactor-1;
     parent->size++;
     child->size = branchingFactor;
     if(!child->isLeaf) --(child->size);
 
-    newSibling->leftSibling_ = parent->getChildRow(indexFound);
-    newSibling->rightSibling_ = parent->getChildNode(indexFound)->rightSibling_;
+    newSibling->leftSibling_ = parent->child[indexFound];
+    newSibling->rightSibling_ = parent->getChildNode(manager, indexFound)->rightSibling_;
     if(newSibling->rightSibling_){
-        newSibling->getChildNode(newSibling->rightSibling_)->leftSibling_ = newSibling->pageNum;
+        newSibling->getChildNode(manager, newSibling->rightSibling_)->leftSibling_ = newSibling->pageNum;
     }
 
-    child->rightSibling_ = newSibling.pageNum;
-    parent->setChild(indexFound + 1, newSibling->pageNum);
+    child->rightSibling_ = newSibling->pageNum;
+    parent->child[indexFound+1] = newSibling->pageNum;
+
+    newSibling->hasUncommitedChanges = true;
+    parent->hasUncommitedChanges = true;
+    child->hasUncommitedChanges = true;
 }
 
 
 // ------------------------ SEARCH ------------------------
 template <typename key_t>
 bool BPTree<key_t>::search(const std::string& str){
-    key_t key = convert<key_t>(str);
-    auto searchRes = searchUtil(std::make_pair(key,-1));
+    key_t key = convertDataType<key_t>(str);
+    auto searchRes = searchUtil(key, -1);
     if(searchRes.node->size == searchRes.index) {
         searchRes.index--;
         incrementLinkedList(searchRes);
     }
-    return (searchRes.node->getKey(searchRes.index).first == key);
+    return (searchRes.node->key[searchRes.index] == key);
 }
 
 template <typename key_t>
 void BPTree<key_t>::traverseAllWithKey(const std::string& strKey){
-    key_t key = convert<key_t>(strKey);
-    auto searchRes = searchUtil(std::make_pair(key,-1));
+    key_t key = convertDataType<key_t>(strKey);
+    auto searchRes = searchUtil(key,-1);
     if(searchRes.node->size == searchRes.index) {
         searchRes.index--;
         incrementLinkedList(searchRes);
     }
 
-    keyRNPair pair = searchRes.node->getKey(searchRes.index);
-    while(searchRes.node && pair.first == key){
-        std::cout << "( " << pair.first << ","<< pair.second << ") ";
+    while(searchRes.node && searchRes.node->keys[searchRes.index] == key){
+        std::cout << "( " << searchRes.node->keys[searchRes.index] << ","<< searchRes.node->pkeys[searchRes.index] << ") ";
         incrementLinkedList(searchRes);
-        pair = searchRes.node->getKey(searchRes.index);
     }
     std::cout << std::endl;
 }
 
 template <typename key_t>
-SearchResult<key_t> BPTree<key_t>::searchUtil(const keyRNPair& key){
+SearchResult<key_t> BPTree<key_t>::searchUtil(const key_t& key, const pkey_t& pkey){
     result_t searchRes{};
 
     if(manager.root != nullptr){
         auto node = manager.root.get();
 
         while(!(node->isLeaf)) {
-            int indexFound = binarySearch(node, key);
-            node = node->getChild(indexFound); //node->child[indexFound].get();
+            int indexFound = binarySearch(node, key, pkey);
+            node = node->getChildNode(manager, indexFound);
         }
 
-        int indexFound = binarySearch(node, key);
+        int indexFound = binarySearch(node, key, pkey);
         searchRes.index = indexFound;
         searchRes.node = node;
     }
@@ -277,7 +275,7 @@ SearchResult<key_t> BPTree<key_t>::searchUtil(const keyRNPair& key){
 }
 
 template <typename key_t>
-int32_t BPTree<key_t>::binarySearch(Node* node, const keyRNPair& key) {
+int32_t BPTree<key_t>::binarySearch(Node* node, const key_t& key, const pkey_t pkey) {
     int l = 0;
     int r = node->size - 1;
     int mid;
@@ -285,7 +283,7 @@ int32_t BPTree<key_t>::binarySearch(Node* node, const keyRNPair& key) {
 
     while(l <= r) {
         mid = (l+r)/2;
-        if(key <= node->getKey(mid)){
+        if((key < node->keys[mid]) || (key == node->keys[mid] && pkey == node->pkeys[mid])){
             r = mid-1;
             ans = mid;
         }
@@ -310,14 +308,13 @@ void BPTree<key_t>::bfsTraverseUtil(Node* start){
 
     printf("%d# ", start->size);
     for(int32_t i = 0; i < start->size; ++i){
-        auto keyPair = start->getKey(i);
-        std::cout << keyPair.first << "(" << keyPair.second << ") ";
+        std::cout << start->keys[i] << "(" << start->pkeys[i] << ") ";
     }
     std::cout << std::endl;
 
     if(!start->isLeaf) {
         for (int i = 0; i < start->size + 1; ++i) {
-            bfsTraverseUtil(start->getChild(i));
+            bfsTraverseUtil(start->getChildNode(manager, i));
         }
     }
 }

@@ -15,11 +15,13 @@
 #include <cerrno>
 #include <memory>
 #include <unordered_map>
+#include <functional>
 #include <queue>
 #include <list>
 #include "Constants.h"
 
-struct Page{
+class Page{
+public:
     std::unique_ptr<char[]> buffer;
     bool hasUncommitedChanges;
     int32_t pageNum;
@@ -50,18 +52,21 @@ protected:
     bool open(const char* fileName);
 
 public:
-    std::unique_ptr<Page> header;
+    std::unique_ptr<page_t> header;
 
+    explicit Pager(int pageLimit_ = DEFAULT_PAGE_LIMIT);
     Pager(const char* fileName, int pageLimit_ = DEFAULT_PAGE_LIMIT);
     ~Pager();
 
     int64_t getFileLength();
-    virtual bool getHeader();
+    bool getHeader();
     bool close();
     bool flush(uint32_t pageNum);
     virtual bool flushPage(page_t* page);
     bool flushAll();
-    page_t* read(uint32_t pageNum);
+
+    page_t* read(uint32_t pageNum, std::function<void(page_t*)> callback = nullptr);
 };
 
+#include "../Pager.cpp"
 #endif //DBMS_PAGER_H

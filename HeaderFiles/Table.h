@@ -12,7 +12,6 @@
 #include "Pager.h"
 #include "DataTypes.h"
 #include "BTree.h"
-#include "BPTreeNodeManager.h"
 //#include <ncurses.h>
 #include "Constants.h"
 
@@ -58,47 +57,40 @@ class Table{
     int32_t rowStackPtr;
     int32_t rowStackOffset;
     bool tableOpen;
-
     std::string tableName;
 public:
-
+    bool tableIsIndexed;
     std::vector<std::string> columnNames;
     std::vector<DataType> columnTypes;
     std::vector<uint32_t> columnSizes;
     std::map<std::string, int> columnIndex;
     std::vector<bool> indexed;
-    std::vector<std::unique_ptr<BPTreeNodeManager>> indexPagers;
     std::unique_ptr<Pager<Page>> pager;
     std::vector<int32_t> stackPtr;
-    std::vector<std::unique_ptr<BPlusTreeBase>> bPlusTrees;
+    std::vector<std::unique_ptr<BPlusTreeBase>> trees;
 
     Table(std::string tableName, const std::string& fileName);
     ~Table();
 
     bool close();
     void storeMetadata();
-    void storeIndexMetadata(int32_t index);
     void loadMetadata();
     void createColumns(std::vector<std::string>&& columnNames, std::vector<DataType>&& columnTypes, std::vector<uint32_t>&& columnSizes);
 
     int32_t getRowSize() const;
     void increaseRowCount();
-    row_t nextFreeIndexLocation(int32_t index);
     row_t nextFreeRowLocation();
     void addFreeRowLocation(row_t location);
-    void addFreeIndexLocation(row_t location, int index);
     bool insertBTree(std::vector<std::string>& data, row_t row);
     Cursor start();
     Cursor end();
 
 private:
     void createColumnIndex();
+    bool createIndex(int index, const std::string& filename);
     void calculateRowInfo();
-    bool createIndexPager(int32_t index, const std::string& fileName);
     void serailizeColumnMetadata(char* buffer);
     void deSerailizeColumnMetadata(char* buffer);
-    void serializeIndexMetadata(char* buffer, int32_t index);
-    void deSerializeIndexMetadata(char* buffer, int32_t index);
 };
 
 #endif //DBMS_TABLE_H

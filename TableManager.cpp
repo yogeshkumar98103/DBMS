@@ -13,14 +13,47 @@ TableManager::TableManager(std::string baseURL_):baseURL(std::move(baseURL_)){
             return;
         }
     }
-    // Read all files in this directory
-    for (auto& itr: std::filesystem::directory_iterator(baseURL)){
-        if(itr.is_regular_file()){
-            tableMap[itr.path().stem().string()] = nullptr;
+
+    std::string indexURL = baseURL + "/indexes";
+    if(!std::filesystem::exists(baseURL + "/indexes")){
+        if(!std::filesystem::create_directory(indexURL)){
+            printf("Failed to create Index Folder\n");
+            return;
         }
     }
-
+    // Read all files in this directory
     printf("Opened Database at \"%s\" Successfully\n", baseURL.c_str());
+    for (auto& itr: std::filesystem::directory_iterator(baseURL)){
+        if(itr.is_regular_file() && itr.path().extension() == ".bin"){
+            std::string name = itr.path().stem().string();
+            tableMap[name] = nullptr;
+            printw("Found Table \"%s\"\n", name.c_str());
+        }
+    }
+}
+
+void TableManager::loadIndexes(const std::shared_ptr<Table>& table){
+    std::string indexURL = baseURL + "/indexes";
+    for (auto& itr: std::filesystem::directory_iterator(indexURL)){
+        if(itr.is_regular_file()){
+            std::string indexFileName = itr.path().stem().string();
+            int i = (int)indexFileName.size() - 1;
+            while(i >= 0 && indexFileName[i] != '_') --i;
+            std::string foundTableName = indexFileName.substr(0, i);
+            if(table->tableName != foundTableName) continue;
+            try{
+                int32_t colNum = std::stoi(indexFileName.substr(i+1, indexFileName.size()));
+                if(colNum < table->columnSizes.size()){
+                    table->indexed[colNum] = true;
+                    table->createIndex(colNum, itr.path().string());
+                    printw("Found Indexfile on column %d\n", colNum + 1);
+                }
+            }
+            catch(...){
+                continue;
+            }
+        }
+    }
 }
 
 TableManagerResult TableManager::open(const std::string& tableName, std::shared_ptr<Table>& table){
@@ -40,6 +73,7 @@ TableManagerResult TableManager::open(const std::string& tableName, std::shared_
             return TableManagerResult::openingFaliure;
         }
         tableMap[tableName] = table;
+        loadIndexes(table);
     }
 
     return TableManagerResult::openedSuccessfully;
@@ -113,9 +147,8 @@ void TableManager::flushAll(){
 
 bool TableManager::createIndex(std::shared_ptr<Table>& table, int32_t index){
     if(table == nullptr || index < 0) return false;
-    bool res = table->createIndexPager(index, getFileName(table->tableName, TableFileType::indexFile, index));
+    bool res = table->createIndex(index, getFileName(table->tableName, TableFileType::indexFile, index));
     if(!res) return false;
-    table->storeIndexMetadata(index);
     return true;
 }
 

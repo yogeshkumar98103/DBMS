@@ -71,6 +71,8 @@ public:
     TableManagerResult closeAll();
     void flushAll();
 
+    void loadIndexes(const std::shared_ptr<Table>& table);
+
 private:
 
     /// This is helper function to get proper file names

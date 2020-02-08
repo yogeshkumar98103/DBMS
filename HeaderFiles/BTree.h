@@ -13,9 +13,10 @@
 #include "Constants.h"
 #include "Table.h"
 #include "BPTreeNodeManager.h"
+#include "DataTypes.h"
 
 template <typename T>
-T convert(const std::string& str);
+T convertDataType(const std::string& str);
 
 /*
  * -------------------- BPTNode --------------------
@@ -23,55 +24,52 @@ T convert(const std::string& str);
  * 2. size              => int32_t
  * 3. leftSibling       => row_t
  * 4. rightSibling      => row_T
- * 5.
  */
 
-static const BPTNodeSizeOffset         = sizeof(bool)
-static const BPTNodeleftSiblingOffset  = BPTNodeSizeOffset + sizeof(in32_t);
-static const BPTNoderightSiblingOffset = leftSiblingOffset + sizeof(row_t)
-static const BPTNodeHeaderSize         = rightSiblingOffset + sizeof(row_t);
-
 template <typename key_t>
-class BPTNode: Page{
+class BPTNode: public Page{
     using Node = BPTNode<key_t>;
     using keyRNPair = std::pair<key_t, pkey_t>;
+    using manager_t = BPTreeNodeManager<BPTNode<key_t>>;
 
     bool isLeaf;
     int size;
     row_t leftSibling_;
     row_t rightSibling_;
 
-    static int32_t childOffset = 0;
-    BPTreeNodeManager* nodeManager;
+    key_t* keys;
+    pkey_t* pkeys;
+    row_t* child;
 
     template <typename o_key_t>
     friend class BPTree;
 
-    template <typename o_key_t>
+    template <typename node_t>
     friend class BPTreeNodeManager;
 
 public:
+    static int32_t childOffset;
+    static int32_t pKeyOffset;
 
     // Setters and Getters
-    Node* getChildNode(int32_t index);
-    row_t getChildRow(int32_t index);
-    keyRNPair getKey(int32_t index);
-    void setChild(int32_t index, Node* child);
-    void setChild(int32_t index, row_t pageNum);
-    void setKey(int32_t index, const keyRNPair& key);
-    void readHeader();
+    Node* getChildNode(manager_t& manager, int32_t index);
+    inline void readHeader(int32_t maxSize, int32_t keySize);
     void writeHeader();
+    void allocate(int32_t maxSize, int32_t keySize);
 
     BPTNode(){
         isLeaf = false;
-        size = 1;
+        size = 0;
         leftSibling_ = 0;
         rightSibling_ = 0;
+        this->hasUncommitedChanges = true;
     }
 
     explicit BPTNode(int32_t pageNo):BPTNode(){
         this->pageNo = pageNo;
     }
+
+    ~BPTNode(){}
 };
 
 template <typename key_t>
@@ -87,6 +85,7 @@ struct SearchResult {
 
 class BPlusTreeBase{
 public:
+    int32_t keySize;
     virtual ~BPlusTreeBase() = default;
     virtual void traverseAllWithKey(std::string){}
 };
@@ -96,13 +95,13 @@ class BPTree: public BPlusTreeBase{
     using Node      = BPTNode<key_t>;
     using result_t  = SearchResult<key_t>;
     using keyRNPair = std::pair<key_t, long long int>;
-    using manager_t = BPTreeNodeManager<key_t>;
+    using manager_t = BPTreeNodeManager<BPTNode<key_t>>;
 
     manager_t manager;
     int32_t branchingFactor;
 
 public:
-    BPTree(const char* filename, int32_t branchingFactor_);
+    BPTree(const char* filename, int32_t branchingFactor_, int32_t keySize_);
     bool insert(const std::string& keyStr, pkey_t pkey, row_t row);
     bool search(const std::string& str);
     void traverseAllWithKey(const std::string& strKey);
@@ -110,10 +109,10 @@ public:
 
 private:
 
-    result_t searchUtil(const keyRNPair& key);
+    result_t searchUtil(const key_t& key, const pkey_t& pKey);
     void incrementLinkedList(result_t& currentPosition);
     void decrementLinkedList(result_t& currentPosition);
-    int32_t binarySearch(Node* node, const keyRNPair& key);
+    int32_t binarySearch(Node* node, const key_t& key, const pkey_t pkey);
     void splitRoot();
     void splitNode(Node* parent, Node* child, int indexFound);
     void bfsTraverseUtil(Node* start);
@@ -150,4 +149,5 @@ private:
 //    void iterateRightLeaf(Node* node, int startIndex);
 };
 
+#include "../BTreeNew.cpp"
 #endif //DBMS_BTREE_H

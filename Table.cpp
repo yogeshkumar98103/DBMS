@@ -1,6 +1,7 @@
 //
 // Created by Yogesh Kumar on 2020-01-31.
 //
+#include <AppleTextureEncoder.h>
 #include "HeaderFiles/Table.h"
 
 // =============================================
@@ -9,7 +10,7 @@
 
 Table::Table(std::string tableName, const std::string& fileName){
     try{
-        this->pager = std::make_unique<Pager>(fileName.c_str());
+        this->pager = std::make_unique<Pager<Page>>(fileName.c_str());
     }
     catch(...){
         throw;
@@ -27,17 +28,6 @@ Table::Table(std::string tableName, const std::string& fileName){
     this->rowsPerPage = 0;
     this->rowStackPtr = 0;
     this->rowStackOffset = 0;
-}
-
-bool Table::createIndexPager(int32_t index, const std::string& fileName){
-    if(!indexed[index]) return false;
-    try{
-        this->indexPagers[index] = std::make_unique<Pager>(fileName.c_str());
-    }
-    catch(...){
-        return false;
-    }
-    return true;
 }
 
 Table::~Table(){
@@ -83,13 +73,9 @@ void Table::storeMetadata() {
     page->hasUncommitedChanges = true;
     pager->flush(0);
     calculateRowInfo();
-}
 
-void Table::storeIndexMetadata(int32_t index){
-    Page* page = indexPagers[index]->header.get();
-    serializeIndexMetadata(page->buffer.get(), index);
-    page->hasUncommitedChanges = true;
-    pager->flush(0);
+    trees.reserve(columnNames.size());
+    for(int i = 0; i < columnNames.size(); ++i) trees.emplace_back(nullptr);
 }
 
 void Table::loadMetadata() {
@@ -97,6 +83,9 @@ void Table::loadMetadata() {
     deSerailizeColumnMetadata(page->buffer.get());
     this->createColumnIndex();
     calculateRowInfo();
+
+    trees.reserve(columnNames.size());
+    for(int i = 0; i < columnNames.size(); ++i) trees.emplace_back(nullptr);
 }
 
 void Table::calculateRowInfo(){
@@ -108,10 +97,6 @@ void Table::calculateRowInfo(){
     int32_t count = columnSizes.size();
     this->indexed.assign(count, false);
     this->stackPtr.assign(count, 0);
-    this->indexPagers.resize(count);
-    for(int32_t i = 0; i < count; ++i){
-        indexPagers[i] = nullptr;
-    }
 }
 
 void Table::serailizeColumnMetadata(char* buffer){
@@ -192,34 +177,6 @@ void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
     rowStackOffset = offset + sizeof(int32_t);
 }
 
-void Table::serializeIndexMetadata(char* buffer, int32_t index){
-    // 1. Stack Ptr
-    // 2. Blank Spaces
-    int32_t offset = 0;
-    memcpy(buffer + offset, &stackPtr[index], sizeof(int32_t));
-    offset += sizeof(int32_t);
-}
-
-void Table::deSerializeIndexMetadata(char* buffer, int32_t index){
-    // 1. Stack Ptr
-    // 2. Blank Spaces
-    int32_t offset = 0;
-    memcpy(&stackPtr[index], buffer + offset, sizeof(int32_t));
-    offset += sizeof(int32_t);
-}
-
-row_t Table::nextFreeIndexLocation(int32_t index){
-    if(stackPtr[index] == 0) return numRows;
-    Page* page = indexPagers[index]->header.get();
-    char* buffer = page->buffer.get();
-    int32_t offset = (stackPtr[index] - 1) * sizeof(row_t) + sizeof(int32_t);
-    row_t nextRow;
-    memcpy(&nextRow, buffer + offset, sizeof(row_t));
-    stackPtr[index]--;
-    memcpy(buffer, &stackPtr[index], sizeof(int32_t));
-    return nextRow;
-}
-
 row_t Table::nextFreeRowLocation(){
     if(rowStackPtr == 0) return numRows;
     Page* page = pager->header.get();
@@ -244,18 +201,6 @@ void Table::addFreeRowLocation(row_t location){
     memcpy(buffer + offset, &location, sizeof(row_t));
 }
 
-void Table::addFreeIndexLocation(row_t location, int index){
-    Page* page = indexPagers[index]->header.get();
-    char* buffer = page->buffer.get();
-    int32_t offset = stackPtr[index] * sizeof(row_t) + sizeof(int32_t);
-    stackPtr[index]++;
-    if(offset + sizeof(row_t) > PAGE_SIZE){
-        printf("Stack Overflow occurred at %d\n", index);
-        throw std::runtime_error("STACK OVERFLOWS HEADER PAGE");
-    }
-    memcpy(buffer + offset, &location, sizeof(row_t));
-}
-
 int32_t Table::getRowSize() const{
     return this->rowSize;
 }
@@ -268,10 +213,57 @@ void Table::increaseRowCount() {
     page->hasUncommitedChanges = true;
 }
 
+bool Table::createIndex(int index, const std::string& filename){
+    if(!indexed[index]) return true;
+    int32_t branchingFactor;
+    switch(columnTypes[index]){
+        case DataType::Int:
+            trees[index] = std::make_unique<BPTree<int>>(filename.c_str(), intBranchingFactor, columnSizes[index]);
+            break;
+        case DataType::Float:
+            trees[index] = std::make_unique<BPTree<float>>(filename.c_str(), floatBranchingFactor, columnSizes[index]);
+            break;
+        case DataType::Char:
+            trees[index] = std::make_unique<BPTree<char>>(filename.c_str(), charBranchingFactor, columnSizes[index]);
+            break;
+        case DataType::Bool:
+            trees[index] = std::make_unique<BPTree<bool>>(filename.c_str(), boolBranchingFactor, columnSizes[index]);
+            break;
+        case DataType::String:
+            branchingFactor = BRANCHING_FACTOR(columnSizes[index]);
+            trees[index] = std::make_unique<BPTree<dbms::string>>(filename.c_str(), branchingFactor, columnSizes[index]);
+            break;
+    }
+    tableIsIndexed = true;
+    return true;
+}
+
 bool Table::insertBTree(std::vector<std::string>& data, row_t row){
+    static pkey_t pkey = 1;
     for(int i = 0; i < indexed.size(); ++i){
         if(!indexed[i]) continue;
-        // TODO: Call insert in bPlusTrees[i]
+        bool res;
+        switch(columnTypes[i]){
+            case DataType::Int:
+                res = dynamic_cast<BPTree<int>*>(trees[i].get())->insert(data[i], pkey, row);
+                break;
+            case DataType::Float:
+                res = dynamic_cast<BPTree<float>*>(trees[i].get())->insert(data[i], pkey, row);
+                break;
+            case DataType::Char:
+                res = dynamic_cast<BPTree<char>*>(trees[i].get())->insert(data[i], pkey, row);
+                break;
+            case DataType::Bool:
+                res = dynamic_cast<BPTree<bool>*>(trees[i].get())->insert(data[i], pkey, row);
+                break;
+            case DataType::String:
+                BPTNode<dbms::string>::pKeyOffset = P_KEY_OFFSET(columnSizes[i]);
+                BPTNode<dbms::string>::childOffset = CHILD_OFFSET(columnSizes[i]);
+                res = dynamic_cast<BPTree<dbms::string>*>(trees[i].get())->insert(data[i], pkey, row);
+                break;
+        }
+        if(!res) return false;
     }
+    ++pkey;
     return true;
 }
