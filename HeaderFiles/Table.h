@@ -12,6 +12,7 @@
 #include "Pager.h"
 #include "DataTypes.h"
 #include "BTree.h"
+#include "BPTreeNodeManager.h"
 //#include <ncurses.h>
 #include "Constants.h"
 
@@ -59,7 +60,6 @@ class Table{
     bool tableOpen;
 
     std::string tableName;
-    std::unique_ptr<Pager> pager;
 public:
 
     std::vector<std::string> columnNames;
@@ -67,7 +67,8 @@ public:
     std::vector<uint32_t> columnSizes;
     std::map<std::string, int> columnIndex;
     std::vector<bool> indexed;
-    std::vector<std::unique_ptr<Pager>> indexPagers;
+    std::vector<std::unique_ptr<BPTreeNodeManager>> indexPagers;
+    std::unique_ptr<Pager<Page>> pager;
     std::vector<int32_t> stackPtr;
     std::vector<std::unique_ptr<BPlusTreeBase>> bPlusTrees;
 

@@ -10,33 +10,67 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include "Constants.h"
+#include "Table.h"
+#include "BPTreeNodeManager.h"
 
 template <typename T>
 T convert(const std::string& str);
 
+/*
+ * -------------------- BPTNode --------------------
+ * 1. isLeaf            => bool
+ * 2. size              => int32_t
+ * 3. leftSibling       => row_t
+ * 4. rightSibling      => row_T
+ * 5.
+ */
+
+static const BPTNodeSizeOffset         = sizeof(bool)
+static const BPTNodeleftSiblingOffset  = BPTNodeSizeOffset + sizeof(in32_t);
+static const BPTNoderightSiblingOffset = leftSiblingOffset + sizeof(row_t)
+static const BPTNodeHeaderSize         = rightSiblingOffset + sizeof(row_t);
+
 template <typename key_t>
-class BPTNode{
+class BPTNode: Page{
     using Node = BPTNode<key_t>;
-    using keyRNPair = std::pair<key_t, long long int>;
+    using keyRNPair = std::pair<key_t, pkey_t>;
+
     bool isLeaf;
     int size;
-    keyRNPair* keys;     // key and row Number
-    std::unique_ptr<Node>* child;
-    Node* leftSibling_;
-    Node* rightSibling_;
+    row_t leftSibling_;
+    row_t rightSibling_;
+
+    static int32_t childOffset = 0;
+    BPTreeNodeManager* nodeManager;
 
     template <typename o_key_t>
     friend class BPTree;
 
+    template <typename o_key_t>
+    friend class BPTreeNodeManager;
+
 public:
-    explicit BPTNode(int branchingFactor):isLeaf(false),size(1),leftSibling_(nullptr),rightSibling_(nullptr){
-        keys = new keyRNPair[(2 * branchingFactor - 1)];
-        child = new std::unique_ptr<Node>[2 * branchingFactor];
+
+    // Setters and Getters
+    Node* getChildNode(int32_t index);
+    row_t getChildRow(int32_t index);
+    keyRNPair getKey(int32_t index);
+    void setChild(int32_t index, Node* child);
+    void setChild(int32_t index, row_t pageNum);
+    void setKey(int32_t index, const keyRNPair& key);
+    void readHeader();
+    void writeHeader();
+
+    BPTNode(){
+        isLeaf = false;
+        size = 1;
+        leftSibling_ = 0;
+        rightSibling_ = 0;
     }
 
-    ~BPTNode(){
-        delete[] keys;
-        delete[] child;
+    explicit BPTNode(int32_t pageNo):BPTNode(){
+        this->pageNo = pageNo;
     }
 };
 
@@ -62,62 +96,58 @@ class BPTree: public BPlusTreeBase{
     using Node      = BPTNode<key_t>;
     using result_t  = SearchResult<key_t>;
     using keyRNPair = std::pair<key_t, long long int>;
+    using manager_t = BPTreeNodeManager<key_t>;
 
-    std::unique_ptr<Node> root;
-    int branchingFactor;
+    manager_t manager;
+    int32_t branchingFactor;
 
 public:
-    explicit BPTree(int branchingFactor_);
-
-    bool insert(const keyRNPair& key);
-
-    bool remove(const keyRNPair& key);
-
+    BPTree(const char* filename, int32_t branchingFactor_);
+    bool insert(const std::string& keyStr, pkey_t pkey, row_t row);
+    bool search(const std::string& str);
+    void traverseAllWithKey(const std::string& strKey);
     void bfsTraverse();
 
-    void greaterThanEquals(const key_t& key);
+private:
 
-    void smallerThanEquals(const key_t& key);
+    result_t searchUtil(const keyRNPair& key);
+    void incrementLinkedList(result_t& currentPosition);
+    void decrementLinkedList(result_t& currentPosition);
+    int32_t binarySearch(Node* node, const keyRNPair& key);
+    void splitRoot();
+    void splitNode(Node* parent, Node* child, int indexFound);
+    void bfsTraverseUtil(Node* start);
 
-    void greaterThan(const key_t& key);
 
-    void smallerThan(const key_t& key);
+//    bool remove(const keyRNPair& key);
 
-    bool search(const std::string& str);
 
-    void traverseAllWithKey(const key_t& key);
+//    void greaterThanEquals(const key_t& key);
+//
+//    void smallerThanEquals(const key_t& key);
+//
+//    void greaterThan(const key_t& key);
+//
+//    void smallerThan(const key_t& key);
 
-    void removeWithKey(const key_t& key);
+//    void removeWithKey(const key_t& key);
 
 private:
     // MARK:- HELPER FUNCTIONS
-   void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete);
+//   void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete);
 
-    result_t searchUtil(const keyRNPair& key);
+//    bool deleteAtLeaf(Node* leaf, int index);
 
-    void rightPosition(result_t& currentPosition);
 
-    void leftPosition(result_t& currentPosition);
+//    void borrowFromLeftSibling(int indexFound, Node* parent, Node* child);
 
-    int binarySearch(Node* node, const keyRNPair& key);
+//    void borrowFromRightSibling(int indexFound, Node* parent, Node* child);
 
-    void splitRoot();
+//    void mergeWithSibling(int indexFound, Node*& parent, Node* child);
 
-    void splitNode(Node* parent, Node* child, int indexFound);
+//    void iterateLeftLeaf(Node* node, int startIndex);
 
-    bool deleteAtLeaf(Node* leaf, int index);
-
-    void bfsTraverseUtil(Node* start);
-
-    void borrowFromLeftSibling(int indexFound, Node* parent, Node* child);
-
-    void borrowFromRightSibling(int indexFound, Node* parent, Node* child);
-
-    void mergeWithSibling(int indexFound, Node*& parent, Node* child);
-
-    void iterateLeftLeaf(Node* node, int startIndex);
-
-    void iterateRightLeaf(Node* node, int startIndex);
+//    void iterateRightLeaf(Node* node, int startIndex);
 };
 
 #endif //DBMS_BTREE_H

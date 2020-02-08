@@ -36,13 +36,16 @@ struct Page{
     }
 };
 
+template <typename page_t>
 class Pager{
-    using list_t = std::list<std::unique_ptr<Page>>;
+protected:
+    using list_t     = std::list<std::unique_ptr<page_t>>;
+    using iterator_t = typename list_t::iterator;
     const int pageLimit;                // Maximum number of pages that can be stored at any time
     int fileDescriptor;                 // File descriptor returned by open system call
     int64_t fileLength;                 // Length of file pointed by fileDescriptor
     int32_t maxPages;                   // Maximum number of pages this file has
-    std::unordered_map<int32_t, list_t::iterator> pageMap;
+    std::unordered_map<int32_t, iterator_t> pageMap;
     list_t pageQueue;
     bool open(const char* fileName);
 
@@ -53,12 +56,12 @@ public:
     ~Pager();
 
     int64_t getFileLength();
-    bool getHeader();
+    virtual bool getHeader();
     bool close();
     bool flush(uint32_t pageNum);
-    bool flushPage(Page* page);
+    virtual bool flushPage(page_t* page);
     bool flushAll();
-    Page* read(uint32_t pageNum);
+    page_t* read(uint32_t pageNum);
 };
 
 #endif //DBMS_PAGER_H

@@ -28,7 +28,7 @@ template <typename key_t>
 BPTree<key_t>::BPTree(int branchingFactor_):branchingFactor(branchingFactor_), root(nullptr){}
 
 template <typename key_t>
-bool BPTree<key_t>::insert(const keyRNPair& key) {
+bool BPTree<key_t>::insert(const keyRNPair& key, row_t row) {
     if(root == nullptr){
         root = std::make_unique<Node>(branchingFactor);
         root->keys[0] = key;
@@ -138,7 +138,7 @@ void BPTree<key_t>::greaterThanEquals(const key_t& key) {
     auto searchRes = searchUtil(std::make_pair(key,-1));
     if(searchRes.node->size == searchRes.index) {
         searchRes.index--;
-        rightPosition(searchRes);
+        incrementLinkedList(searchRes);
     }
     iterateRightLeaf(searchRes.node, searchRes.index);
     printf("\n");
@@ -151,7 +151,7 @@ void BPTree<key_t>::smallerThanEquals(const key_t& key) {
         searchRes.index--;
     }
     else{
-        leftPosition(searchRes);
+        decrementLinkedList(searchRes);
     }
     iterateLeftLeaf(searchRes.node, searchRes.index);
     printf("\n");
@@ -162,7 +162,7 @@ void BPTree<key_t>::greaterThan(const key_t& key) {
     auto searchRes = searchUtil(std::make_pair(key,LLONG_MAX));
     if(searchRes.node->size == searchRes.index) {
         searchRes.index--;
-        rightPosition(searchRes);
+        incrementLinkedList(searchRes);
     }
     iterateRightLeaf(searchRes.node, searchRes.index);
     printf("\n");
@@ -175,7 +175,7 @@ void BPTree<key_t>::smallerThan(const key_t& key) {
         searchRes.index--;
     }
     else {
-        leftPosition(searchRes);
+        decrementLinkedList(searchRes);
     }
     iterateLeftLeaf(searchRes.node, searchRes.index);
     printf("\n");
@@ -183,11 +183,11 @@ void BPTree<key_t>::smallerThan(const key_t& key) {
 
 template <typename key_t>
 bool BPTree<key_t>::search(const std::string& str){
-     key_t key = convert<key_t>(str);
+    key_t key = convert<key_t>(str);
     auto searchRes = searchUtil(std::make_pair(key,-1));
     if(searchRes.node->size == searchRes.index) {
         searchRes.index--;
-        rightPosition(searchRes);
+        incrementLinkedList(searchRes);
     }
     if(searchRes.node->keys[searchRes.index].first != key) {
         return false;
@@ -201,11 +201,11 @@ void BPTree<key_t>::traverseAllWithKey(const key_t& key){
     auto searchRes = searchUtil(std::make_pair(key,-1));
     if(searchRes.node->size == searchRes.index) {
         searchRes.index--;
-        rightPosition(searchRes);
+        incrementLinkedList(searchRes);
     }
     while(searchRes.node && searchRes.node->keys[searchRes.index].first == key){
         printf("%d(%ld) ", searchRes.node->keys[searchRes.index].first,searchRes.node->keys[searchRes.index].second);
-        rightPosition(searchRes);
+        incrementLinkedList(searchRes);
     }
     printf("\n");
 }
@@ -233,7 +233,7 @@ void BPTree<key_t>::removeWithKey(const key_t& key){
         auto searchRes = searchUtil(std::make_pair(key,-1));
         if(searchRes.node->size == searchRes.index) {
             searchRes.index--;
-            rightPosition(searchRes);
+            incrementLinkedList(searchRes);
         }
         int startIndexNode = searchRes.index;
         int endIndexNode = startIndexNode;
@@ -278,7 +278,7 @@ SearchResult<key_t> BPTree<key_t>::searchUtil(const keyRNPair& key){
 }
 
 template <typename key_t>
-void BPTree<key_t>::rightPosition(result_t& currentPosition){
+void BPTree<key_t>::incrementLinkedList(result_t& currentPosition){
     if(currentPosition.index < currentPosition.node->size-1) {
         currentPosition.index++;
     }
@@ -295,7 +295,7 @@ void BPTree<key_t>::rightPosition(result_t& currentPosition){
 }
 
 template <typename key_t>
-void BPTree<key_t>::leftPosition(result_t& currentPosition){
+void BPTree<key_t>::decrementLinkedList(result_t& currentPosition){
     if(currentPosition.index>0) {
         currentPosition.index--;
     }

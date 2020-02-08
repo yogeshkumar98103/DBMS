@@ -1,6 +1,7 @@
 #include "HeaderFiles/Pager.h"
 
-Pager::Pager(const char* fileName, int pageLimit_): pageLimit(pageLimit_){
+template <typename page_t>
+Pager<page_t>::Pager(const char* fileName, int pageLimit_): pageLimit(pageLimit_){
     this->fileDescriptor = -1;
     this->fileLength = 0;
     this->maxPages = 0;
@@ -10,17 +11,20 @@ Pager::Pager(const char* fileName, int pageLimit_): pageLimit(pageLimit_){
     this->getHeader();
 }
 
-Pager::~Pager(){
+template <typename page_t>
+Pager<page_t>::~Pager(){
     this->close();
 }
 
-int64_t Pager::getFileLength(){
+template <typename page_t>
+int64_t Pager<page_t>::getFileLength(){
     off_t fileLength_ = lseek(fileDescriptor, 0, SEEK_END);
     this->fileLength = static_cast<int64_t>(fileLength_);
     return this->fileLength;
 };
 
-bool Pager::open(const char* fileName){
+template <typename page_t>
+bool Pager<page_t>::open(const char* fileName){
     int openFlags = O_RDWR | O_CREAT;
     mode_t filePerms = S_IWUSR | S_IRUSR;
     int fd = ::open(fileName, openFlags, filePerms);
@@ -33,7 +37,8 @@ bool Pager::open(const char* fileName){
     return true;
 }
 
-bool Pager::close(){
+template <typename page_t>
+bool Pager<page_t>::close(){
     if(this->fileDescriptor == -1) return false;
     flushAll();
     pageQueue.clear();
@@ -46,8 +51,9 @@ bool Pager::close(){
 /// This return the asked page from opened file
 /// You have to manually look for required table row or other information in the logic that calls this function.
 /// pageNum is 0 indexed
-bool Pager::getHeader(){
-    header = std::make_unique<Page>();
+template <typename page_t>
+bool Pager<page_t>::getHeader(){
+    header = std::make_unique<page_t>();
     this->fileLength = static_cast<uint32_t>(lseek(fileDescriptor, 0, SEEK_END));
     this->maxPages = (this->fileLength + PAGE_SIZE - 1) / PAGE_SIZE;
     if(maxPages > 0){
@@ -61,14 +67,15 @@ bool Pager::getHeader(){
     return true;
 }
 
-Page* Pager::read(uint32_t pageNum){
+template <typename page_t>
+page_t* Pager<page_t>::read(uint32_t pageNum){
     if(this->fileDescriptor == -1) return nullptr;
     if(pageNum == 0) return this->header.get();
-    std::unique_ptr<Page> page;
+    std::unique_ptr<page_t> page;
     auto itr = pageMap.find(pageNum);
     if(itr == pageMap.end()){
         // Cache miss. Allocate memory and load from file.
-        page = std::make_unique<Page>();
+        page = std::make_unique<page_t>();
         page->pageNum = pageNum;
         this->fileLength = static_cast<uint32_t>(lseek(fileDescriptor, 0, SEEK_END));
         this->maxPages = (this->fileLength + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -103,7 +110,8 @@ Page* Pager::read(uint32_t pageNum){
 }
 
 /// This flushes the given page to storage if it is open
-bool Pager::flush(uint32_t pageNum){
+template <typename page_t>
+bool Pager<page_t>::flush(uint32_t pageNum){
     if(this->fileDescriptor == -1) return false;
     if(pageNum == 0){
         return flushPage(header.get());
@@ -117,7 +125,8 @@ bool Pager::flush(uint32_t pageNum){
     return flushPage(it);
 }
 
-bool Pager::flushAll(){
+template <typename page_t>
+bool Pager<page_t>::flushAll(){
     if(this->fileDescriptor == -1) return false;
     flushPage(header.get());
     int size = pageQueue.size();
@@ -130,7 +139,8 @@ bool Pager::flushAll(){
     return true;
 }
 
-bool Pager::flushPage(Page* page){
+template <typename page_t>
+bool Pager<page_t>::flushPage(page_t* page){
     off_t offset = lseek(fileDescriptor, page->pageNum * PAGE_SIZE, SEEK_SET);
     if (offset == -1) return false;
     ssize_t bytesWritten = write(fileDescriptor, page->buffer.get(), PAGE_SIZE);
