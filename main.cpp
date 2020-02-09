@@ -107,6 +107,10 @@ void func(){
         case ExecuteResult::invalidColumnName:
             printw("Column names don't match table column names\n");
             break;
+        case ExecuteResult::tableNotIndexed:
+            printw("There are no indexes for this table.\n"
+                   "Create atleast one and then try again.\n");
+            break;
         case ExecuteResult::unexpectedError:
             printw("Unexpected Error occured\n");
             break;

@@ -10,6 +10,7 @@ enum class ExecuteResult{
     typeMismatch,
     stringTooLarge,
     invalidColumnName,
+    tableNotIndexed,
     unexpectedError
 };
 
@@ -90,6 +91,7 @@ public:
                 break;
             case StatementType::index:
                 res = executeIndex(parser.statement);
+                break;
             case StatementType::update:
                 res = executeUpdate(parser.statement);
                 break;
@@ -114,10 +116,8 @@ private:
 
         ErrorHandler::handleTableManagerError(res);
         if(res == TableManagerResult::tableCreatedSuccessfully){
-//            printw("Success Executing\n");
             return ExecuteResult::success;
         }
-//        printw("Faliure Executing\n");
         return ExecuteResult::faliure;
     }
 
@@ -156,7 +156,7 @@ private:
         if(res != TableManagerResult::openedSuccessfully) {
             return ExecuteResult::faliure;
         }
-
+        if(!table->tableIsIndexed) return ExecuteResult::tableNotIndexed;
         auto insertStatement = dynamic_cast<InsertStatement*>(statement.get());
         int32_t columnCount = table->columnNames.size();
         int32_t actualSize = insertStatement->data.size();
@@ -175,7 +175,10 @@ private:
         table->increaseRowCount();
         cursor.addedChangesToCommit();
 
-        // if(!table->insertBTree(insertStatement->data, cursor.row))
+        if(!table->insertBTree(insertStatement->data, cursor.row)){
+            return ExecuteResult::faliure;
+            // Remove cursor.row from table
+        }
         return ExecuteResult::success;
     }
 
@@ -212,10 +215,14 @@ private:
         };
 
         if(selectStatement->selectAllRows){
-
+            bool traverseRes = table->trees[table->anyIndex]->traverse(callback);
+            if(!traverseRes) return ExecuteResult::unexpectedError;
+            return ExecuteResult::success;
         }
-//        auto condition = std::move(selectStatement->condition);
-//        int32_t index = table->columnIndex[condition.col];
+
+        auto condition = std::move(selectStatement->condition);
+        int32_t index = table->columnIndex[condition.col];
+
 //        if(condition.isCompound){
 //
 //        }

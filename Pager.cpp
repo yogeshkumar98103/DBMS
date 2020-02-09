@@ -1,5 +1,12 @@
 #include "HeaderFiles/Pager.h"
 
+template<typename page_t>
+Pager<page_t>::Pager(int pageLimit_): pageLimit(pageLimit_){
+    this->fileDescriptor = -1;
+    this->fileLength = 0;
+    this->maxPages = 0;
+}
+
 template <typename page_t>
 Pager<page_t>::Pager(const char* fileName, int pageLimit_): pageLimit(pageLimit_){
     this->fileDescriptor = -1;
@@ -68,7 +75,7 @@ bool Pager<page_t>::getHeader(){
 }
 
 template <typename page_t>
-page_t* Pager<page_t>::read(uint32_t pageNum){
+page_t* Pager<page_t>::read(uint32_t pageNum, std::function<void(page_t*)> callback){
     if(this->fileDescriptor == -1) return nullptr;
     if(pageNum == 0) return this->header.get();
     std::unique_ptr<page_t> page;
@@ -88,6 +95,7 @@ page_t* Pager<page_t>::read(uint32_t pageNum){
                 printf("Error reading file: %d\n", errno);
                 return nullptr;
             }
+            if(callback) callback(page.get());
         }
 
         // Handle Page Queue
@@ -141,7 +149,7 @@ bool Pager<page_t>::flushAll(){
 
 template <typename page_t>
 bool Pager<page_t>::flushPage(page_t* page){
-    off_t offset = lseek(fileDescriptor, page->pageNum * PAGE_SIZE, SEEK_SET);
+    off_t offset = lseek(fileDescriptor, ((page->pageNum) * PAGE_SIZE), SEEK_SET);
     if (offset == -1) return false;
     ssize_t bytesWritten = write(fileDescriptor, page->buffer.get(), PAGE_SIZE);
     if (bytesWritten == -1) return false;

@@ -3,8 +3,8 @@ project(DBMS)
 
 set(CMAKE_CXX_STANDARD 17)
 set(LNCURSES_COMPILE_FLAG "-lncurses")
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LNCURSES_COMPILE_FLAG}" )
-#set_source_files_properties(main.cpp "${LNCURSES_COMPILE_FLAG}")
-#set_source_files_properties(CommandHistory.cpp "${LNCURSES_COMPILE_FLAG}")
-add_executable(DBMS main.cpp Cursor.cpp Table.cpp Pager.cpp TableManager.cpp BTreeNew.cpp BPTreeNodeManager.cpp)
-#add_executable(BTree BTree.cpp)
+#set_source_files_properties(main.cpp CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LNCURSES_COMPILE_FLAG}")
+
+add_executable(DBMS main.cpp Cursor.cpp Table.cpp TableManager.cpp)
