@@ -215,10 +215,14 @@ private:
         };
 
         if(selectStatement->selectAllRows){
-
+            bool traverseRes = table->trees[table->anyIndex]->traverse(callback);
+            if(!traverseRes) return ExecuteResult::unexpectedError;
+            return ExecuteResult::success;
         }
-//        auto condition = std::move(selectStatement->condition);
-//        int32_t index = table->columnIndex[condition.col];
+
+        auto condition = std::move(selectStatement->condition);
+        int32_t index = table->columnIndex[condition.col];
+
 //        if(condition.isCompound){
 //
 //        }

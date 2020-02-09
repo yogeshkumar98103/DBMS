@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <functional>
 #include "Constants.h"
 #include "Table.h"
 #include "BPTreeNodeManager.h"
@@ -88,6 +89,7 @@ public:
     int32_t keySize;
     virtual ~BPlusTreeBase() = default;
     virtual void traverseAllWithKey(std::string){}
+    virtual bool traverse(const std::function<bool(row_t row)>& callback){return false;}
 };
 
 template <typename key_t>
@@ -104,8 +106,9 @@ public:
     BPTree(const char* filename, int32_t branchingFactor_, int32_t keySize_);
     bool insert(const std::string& keyStr, pkey_t pkey, row_t row);
     bool search(const std::string& str);
+    bool traverse(const std::function<bool(row_t row)>& callback) override;
     void traverseAllWithKey(const std::string& strKey);
-    void bfsTraverse();
+    void bfsTraverseDebug();
 
 private:
 
@@ -115,7 +118,8 @@ private:
     int32_t binarySearch(Node* node, const key_t& key, const pkey_t pkey);
     void splitRoot();
     void splitNode(Node* parent, Node* child, int indexFound);
-    void bfsTraverseUtil(Node* start);
+    void bfsTraverseUtilDebug(Node* start);
+    bool traverseUtil(Node* start, const std::function<bool(row_t row)>& callback);
 
 
 //    bool remove(const keyRNPair& key);

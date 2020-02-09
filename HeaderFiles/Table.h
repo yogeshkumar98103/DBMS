@@ -60,6 +60,8 @@ class Table{
     std::string tableName;
 public:
     bool tableIsIndexed;
+    int32_t anyIndex;
+
     std::vector<std::string> columnNames;
     std::vector<DataType> columnTypes;
     std::vector<uint32_t> columnSizes;

@@ -55,6 +55,9 @@ bool BPTreeNodeManager<node_t>::getRoot(){
         root->hasUncommitedChanges = false;
         root->readHeader(2 * branchingFactor - 1, keySize);
     }
+    else{
+        incrementPageNum();
+    }
     root->pageNum = this->rootPageNum;
     root->allocate(2 * branchingFactor - 1, keySize);
     return true;
@@ -156,7 +159,7 @@ bool BPTreeNodeManager<node_t>::flushPage(node_t* node){
 
 template <typename node_t>
 row_t BPTreeNodeManager<node_t>::nextFreeIndexLocation(){
-    if(stackPtr == 0) return numPages;
+    if(stackPtr == 0) return numPages + 1;
     Page* page = this->header.get();
     char* buffer = page->buffer.get();
     int32_t offset = stackPtrOffset + (stackPtr - 1) * sizeof(row_t) + sizeof(int32_t);
@@ -165,6 +168,20 @@ row_t BPTreeNodeManager<node_t>::nextFreeIndexLocation(){
     stackPtr--;
     memcpy(buffer, &stackPtr, sizeof(int32_t));
     return nextRow;
+}
+
+template <typename node_t>
+void BPTreeNodeManager<node_t>::incrementPageNum(){
+    numPages++;
+    memcpy(this->header->buffer.get(), &this->numPages, sizeof(row_t));
+    this->header->hasUncommitedChanges = true;
+}
+
+template <typename node_t>
+void BPTreeNodeManager<node_t>::decrementPageNum(){
+    numPages--;
+    memcpy(this->header->buffer.get(), &this->numPages, sizeof(row_t));
+    this->header->hasUncommitedChanges = true;
 }
 
 template <typename node_t>
@@ -183,14 +200,14 @@ void BPTreeNodeManager<node_t>::addFreeIndexLocation(row_t location){
 template<typename node_t>
 void BPTreeNodeManager<node_t>::setRoot(node_t* newNode){
     // Remove newRoot from LRU Cache
-    auto itr = this->pageMap[newNode->pageNum];
-    this->pageQueue.erase(itr);
+    auto itr = this->pageMap.find(newNode->pageNum);
+    auto temp = std::move(*(itr->second));
+    this->pageQueue.erase(itr->second);
     this->pageMap.erase(newNode->pageNum);
 
     // Add oldRoot to LRU Cache
-    auto temp = std::move(*itr);
     this->pageQueue.emplace_front(std::move(root));
-    this->pageMap[root->pageNum] = this->pageQueue.begin();
+    this->pageMap[rootPageNum] = this->pageQueue.begin();
 
     // Set root to newRoot
     root = std::move(temp);

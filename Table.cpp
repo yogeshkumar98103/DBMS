@@ -218,7 +218,7 @@ bool Table::createIndex(int index, const std::string& filename){
     int32_t branchingFactor;
     switch(columnTypes[index]){
         case DataType::Int:
-            trees[index] = std::make_unique<BPTree<int>>(filename.c_str(), intBranchingFactor, columnSizes[index]);
+            trees[index] = std::make_unique<BPTree<int>>(filename.c_str(), 2, columnSizes[index]);
             break;
         case DataType::Float:
             trees[index] = std::make_unique<BPTree<float>>(filename.c_str(), floatBranchingFactor, columnSizes[index]);
@@ -234,6 +234,7 @@ bool Table::createIndex(int index, const std::string& filename){
             trees[index] = std::make_unique<BPTree<dbms::string>>(filename.c_str(), branchingFactor, columnSizes[index]);
             break;
     }
+    anyIndex = index;
     tableIsIndexed = true;
     return true;
 }

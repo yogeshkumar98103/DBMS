@@ -39,6 +39,8 @@ public:
     bool getRoot();
     void setRoot(node_t* newRoot);
     bool getHeader();
+    void incrementPageNum();
+    void decrementPageNum();
     void deserializeHeaderMetaData();
     void serializeHeaderMetaData();
 };
