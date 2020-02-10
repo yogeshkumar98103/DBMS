@@ -122,8 +122,9 @@ bool BPTree<key_t>::insert(const std::string& keyStr, pkey_t pkey, row_t row) {
 
     int insertAtIndex = 0;
     for(int i = current->size-1; i >= 0; --i){
-        if(key <= current->keys[i]){
+        if(key <= current->keys[i] || (key == current->keys[i] && pkey <= current->pkeys[i])){
             current->keys[i+1] = current->keys[i];
+            current->child[i+1] = current->child[i];
             current->pkeys[i+1] = current->pkeys[i];
         }
         else {
@@ -159,18 +160,24 @@ void BPTree<key_t>::splitRoot(){
         newNode->isLeaf = true;
     }
 
+    
     // Copy right half keys to newNode
     int maxSize = 2*branchingFactor-1;
     for(int i = branchingFactor; i < maxSize; ++i){
         newNode->keys[i-branchingFactor]  = root->keys[i];
+        newNode->pkeys[i-branchingFactor]  = root->pkeys[i];
         newNode->child[i-branchingFactor] = root->child[i];
     }
 
     newRoot->keys[0]  = root->keys[branchingFactor - 1];
+    newRoot->pkeys[0]  = root->pkeys[branchingFactor - 1];
     newRoot->size = 1;
 
     newNode->size = branchingFactor - 1;
-    newNode->child[branchingFactor-1] = root->child[maxSize];
+
+    if(!newNode->isLeaf){ 
+        newNode->child[branchingFactor-1] = root->child[maxSize];
+    }
 
     root->rightSibling_ = newNode->pageNum;
     newNode->leftSibling_ = root->pageNum;
@@ -199,9 +206,11 @@ void BPTree<key_t>::splitNode(Node* parent, Node* child, int indexFound){
     // Shift keys right to accommodate a key from child
     for(int i = parent->size - 1; i >= indexFound; --i){
         parent->keys[i+1]  = parent->keys[i];
+        parent->pkeys[i+1]  = parent->pkeys[i];
         parent->child[i+2] = parent->child[i+1];
     }
     parent->keys[indexFound] = child->keys[branchingFactor - 1];
+    parent->pkeys[indexFound] = child->pkeys[branchingFactor - 1];
 
     int32_t nextPageNo = manager.nextFreeIndexLocation();
     Node* newSibling = manager.read(nextPageNo);
@@ -211,14 +220,17 @@ void BPTree<key_t>::splitNode(Node* parent, Node* child, int indexFound){
     // Copy right half keys to newNode
     for(int i = branchingFactor; i < maxSize; ++i) {
         newSibling->keys[i-branchingFactor]  = child->keys[i];
+        newSibling->pkeys[i-branchingFactor]  = child->pkeys[i];
         newSibling->child[i-branchingFactor] = child->child[i];
     }
-    newSibling->child[branchingFactor-1] = child->child[maxSize];
 
     newSibling->size = branchingFactor-1;
     parent->size++;
     child->size = branchingFactor;
-    if(!child->isLeaf) --(child->size);
+    if(!child->isLeaf) {
+        --(child->size);
+        newSibling->child[branchingFactor-1] = child->child[maxSize];
+    }
 
     newSibling->leftSibling_ = parent->child[indexFound];
     newSibling->rightSibling_ = parent->getChildNode(manager, indexFound)->rightSibling_;
@@ -291,7 +303,7 @@ int32_t BPTree<key_t>::binarySearch(Node* node, const key_t& key, const pkey_t p
 
     while(l <= r) {
         mid = (l+r)/2;
-        if((key < node->keys[mid]) || (key == node->keys[mid] && pkey == node->pkeys[mid])){
+        if((key < node->keys[mid]) || (key == node->keys[mid] && pkey < node->pkeys[mid])){
             r = mid-1;
             ans = mid;
         }

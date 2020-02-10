@@ -41,7 +41,6 @@ class BPTNode: public Page{
     key_t* keys;
     pkey_t* pkeys;
     row_t* child;
-    row_t* dataRN;
 
     template <typename o_key_t>
     friend class BPTree;
