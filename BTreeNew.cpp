@@ -169,7 +169,7 @@ void BPTree<key_t>::splitRoot(){
     newRoot->keys[0]  = root->keys[branchingFactor - 1];
     newRoot->size = 1;
 
-    newNode->size     = branchingFactor - 1;
+    newNode->size = branchingFactor - 1;
     newNode->child[branchingFactor-1] = root->child[maxSize];
 
     root->rightSibling_ = newNode->pageNum;
