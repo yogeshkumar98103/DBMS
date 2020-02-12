@@ -321,6 +321,13 @@ bool BPTree<key_t>::traverse(const std::function<bool(row_t row)>& callback){
     return traverseUtil(manager.root.get(), callback);
 }
 
+void BPTree<key_t>::traverseAllLeaf(){
+    Node* root = manager.root.get();
+    while(!root->isLeaf) root = root->getChildNode(manager, 0);
+
+    iterateRightLeaf(root,0);
+}
+
 template <typename key_t>
 bool BPTree<key_t>::traverseUtil(Node* start, const std::function<bool(row_t row)>& callback){
     if(start == nullptr) return true;
@@ -395,5 +402,18 @@ void BPTree<key_t>::decrementLinkedList(result_t& currentPosition){
             currentPosition.node = nullptr;
             currentPosition.index = -1;
         }
+    }
+}
+
+
+template <typename key_t>
+void BPTree<key_t>::iterateRightLeaf(Node* node, int startIndex){
+    while(node!=nullptr){
+        for(int i=startIndex;i<node->size;i++){
+            printf("%d (%d)\n", node->keys[i]);
+        }
+        node = node->rightSibling_;
+        startIndex=0;
+
     }
 }

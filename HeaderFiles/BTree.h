@@ -135,6 +135,8 @@ private:
 
 //    void removeWithKey(const key_t& key);
 
+    void traverseAllLeaf();
+
 private:
     // MARK:- HELPER FUNCTIONS
 //   void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete);
@@ -150,7 +152,7 @@ private:
 
 //    void iterateLeftLeaf(Node* node, int startIndex);
 
-//    void iterateRightLeaf(Node* node, int startIndex);
+   void iterateRightLeaf(Node* node, int startIndex);
 };
 
 #include "../BTreeNew.cpp"
