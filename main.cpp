@@ -1,8 +1,8 @@
 #include <cstdio>
-#include <ncurses.h>
-//#include "HeaderFiles/Constants.h"
+#include <cstdlib>
+#include <readline/readline.h>
+#include <readline/history.h>
 #include "Executor.cpp"
-//#include "CommandHistory.cpp"
 
 //void sigintHandler(int sig_num)
 //{
@@ -14,20 +14,18 @@
 //    fflush(stdout);
 //}
 
-void func(){
-    static InputBuffer inputBuffer;
-    static Parser parser;
-    static Executor executor("./MyDatabase");
+InputBuffer inputBuffer;
+Parser parser;
+Executor executor("./MyDatabase");
 
-    printPrompt();
-    inputBuffer.readInput();
+void runCommand(char* line){
+    inputBuffer.buffer = line;
 
     if(inputBuffer.isMetaCommand()){
         switch(inputBuffer.performMetaCommand()){
             case MetaCommandResult::exit:
                 executor.sharedManager->closeAll();
                 printw("Exited Successfully\n");
-                endwin();
                 exit(EXIT_SUCCESS);
 
             case MetaCommandResult::flush:
@@ -117,17 +115,28 @@ void func(){
     }
 }
 
-int main() {
-//    signal(SIGINT, sigintHandler);
-//    CommandInput commandInput;
-//    int c;
-//    initscr();
-//    commandInput.initialize();
+int main(){
     while(true){
-        func();
-//        c = getch();
-//        commandInput.handleKeys(c);
+        char* line = readline("db> ");
+        if(!line) break;
+        if(*line) add_history(line);
+        runCommand(line);
     }
-    endwin();
     return 0;
 }
+
+
+//int main() {
+////    signal(SIGINT, sigintHandler);
+////    CommandInput commandInput;
+////    int c;
+////    initscr();
+////    commandInput.initialize();
+//    while(true){
+//        func();
+////        c = getch();
+////        commandInput.handleKeys(c);
+//    }
+//    endwin();
+//    return 0;
+//}

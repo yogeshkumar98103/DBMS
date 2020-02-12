@@ -12,7 +12,6 @@
 #include "Pager.h"
 #include "DataTypes.h"
 #include "BTree.h"
-//#include <ncurses.h>
 #include "Constants.h"
 
 class Table;

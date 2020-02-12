@@ -24,7 +24,7 @@ T convertDataType(const std::string& str);
  * 1. isLeaf            => bool
  * 2. size              => int32_t
  * 3. leftSibling       => row_t
- * 4. rightSibling      => row_T
+ * 4. rightSibling      => row_t
  */
 
 template <typename key_t>

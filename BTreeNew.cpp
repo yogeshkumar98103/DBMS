@@ -37,9 +37,9 @@ void BPTNode<key_t>::writeHeader() {
     offset += sizeof(bool);
     memcpy(buffer + offset, &size, sizeof(size));
     offset += sizeof(int32_t);
-    memcpy(buffer + offset, &leftSibling_, sizeof(leftSibling_));
+    memcpy(buffer + offset, &leftSibling_, sizeof(row_t));
     offset += sizeof(row_t);
-    memcpy(buffer + offset, &rightSibling_, sizeof(rightSibling_));
+    memcpy(buffer + offset, &rightSibling_, sizeof(row_t));
     offset += sizeof(row_t);
 }
 
@@ -325,8 +325,10 @@ template <typename key_t>
 bool BPTree<key_t>::traverseUtil(Node* start, const std::function<bool(row_t row)>& callback){
     if(start == nullptr) return true;
 
-    for(int32_t i = 0; i < start->size; ++i){
-        if(!callback(start->child[i])) return false;
+    if(start->isLeaf){
+        for(int32_t i = 0; i < start->size; ++i){
+            if(!callback(start->child[i])) return false;
+        }
     }
 
     if(!start->isLeaf) {

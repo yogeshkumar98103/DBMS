@@ -212,6 +212,10 @@ void BPTreeNodeManager<node_t>::setRoot(node_t* newNode){
     // Set root to newRoot
     root = std::move(temp);
     this->rootPageNum = root->pageNum;
+    Page* page = this->header.get();
+    char* buffer = page->buffer.get();
+    memcpy(buffer + sizeof(row_t), &this->rootPageNum, sizeof(row_t));
+    this->header->hasUncommitedChanges = true;
 }
 
 template <typename node_t>
