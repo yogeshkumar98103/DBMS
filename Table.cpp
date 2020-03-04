@@ -1,7 +1,6 @@
 //
 // Created by Yogesh Kumar on 2020-01-31.
 //
-#include <AppleTextureEncoder.h>
 #include "HeaderFiles/Table.h"
 
 // =============================================
