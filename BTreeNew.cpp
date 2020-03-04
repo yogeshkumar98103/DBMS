@@ -389,9 +389,8 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback
             // If child is of size branchingFactor-1 fix it and then traverse in
             bool flag = false;
             Node* leftSibling, rightSibling;
-            leftSibling = current->getChildNode(manager, indexFound - 1);
 
-            if(indexFound > 0 && leftSibling->size > branchingFactor-1){
+            if(indexFound > 0 && (leftSibling = current->getChildNode(manager, indexFound - 1)) && leftSibling->size > branchingFactor-1){
                 borrowFromLeftSibling(indexFound, current, child, leftSibling);
                 current = child;
             }
@@ -550,12 +549,14 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
         parent->size--;
         if(parent->size == 0){
             // happens only when parent is root
-            this->root = parent->child[indexFound-1];
+            manager.addFreeIndexLocation(parent->pageNum);
+            manager.setRoot(leftSibling);
         }
-        parent = leftSibling;
+        manager.addFreeIndexLocation(child->pageNum);
         leftSibling->hasUncommitedChanges = true;
         parent->hasUncommitedChanges = true;
         child->hasUncommitedChanges = true;
+        parent = leftSibling;
     }
     else if(indexFound < parent->size){
         child->rightSibling_ = rightSibling->rightSibling_;
@@ -563,35 +564,47 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
             child->rightSibling_->leftSibling_ = child;
         }
         if(rightSibling->isLeaf){
-            for(int i = 0; i < rightSibling->size; ++i){
-                child->keys[branchingFactor+i-1] = rightSibling->keys[i];
-                child->pkeys[branchingFactor+i-1] = rightSibling->pkeys[i];
-                child->child[branchingFactor+i-1] = rightSibling->child[i];
+            for(int i = rightSibling->size - 1 ; i >= 0; i--){
+                rightSibling->keys[branchingFactor+i-1] = rightSibling->keys[i];
+                rightSibling->pkeys[branchingFactor+i-1] = rightSibling->pkeys[i];
+                rightSibling->child[branchingFactor+i-1] = rightSibling->child[i];
             }
-            child->size = maxSize - 1;
+            for(int i = 0; i < child->size ; i++){
+                rightSibling->keys[i] = child->keys[i];
+                rightSibling->pkeys[i] = child->pkeys[i];
+                rightSibling->child[i] = child->child[i];
+            }
 
+            rightSibling->size = maxSize - 1;
+            parent->child[indexFound] = rightSibling->pageNum;
             for(int i = indexFound; i < parent->size-1; ++i){
                 parent->keys[i]    = parent->keys[i+1];
-                parent->pkeys[i]    = parent->pkeys[i+1];
-                parent->child[i+1] = std::move(parent->child[i+2]);
+                parent->pkeys[i]   = parent->pkeys[i+1];
+                parent->child[i+1] = parent->child[i+2];
             }
         }
         else {
-            child->keys[branchingFactor-1] = parent->keys[indexFound];
-            child->pkeys[branchingFactor-1] = parent->pkeys[indexFound];
-            child->child[branchingFactor] = std::move(rightSibling->child[0]);
-
-            for(int i = 0; i < rightSibling->size; ++i){
-                child->keys[branchingFactor+i] = rightSibling->keys[i];
-                child->pkeys[branchingFactor+i] = rightSibling->pkeys[i];
-                child->child[branchingFactor+i+1]  = std::move(rightSibling->child[i+1]);
+            rightSibling->child[branchingFactor+rightSibling->size] = rightSibling->child[rightSibling->size];
+            for(int i = rightSibling->size - 1 ; i >= 0; i--){
+                rightSibling->keys[branchingFactor+i]  = rightSibling->keys[i];
+                rightSibling->pkeys[branchingFactor+i] = rightSibling->pkeys[i];
+                rightSibling->child[branchingFactor+i] = rightSibling->child[i];
             }
-            child->size = maxSize;
+            rightSibling->keys[branchingFactor-1] = parent->keys[indexFound];
+            rightSibling->pkeys[branchingFactor-1] = parent->pkeys[indexFound];
+            rightSibling->child[branchingFactor-1] = child->child[branchingFactor-1];
 
+            for(int i = 0; i < child->size; ++i){
+                rightSibling->keys[i]  = child->keys[i];
+                rightSibling->pkeys[i] = child->pkeys[i];
+                rightSibling->child[i] = child->child[i];
+            }
+            rightSibling->size = maxSize;
+            parent->child[indexFound] = rightSibling->pageNum;
             for(int i = indexFound; i < parent->size-1; ++i){
                 parent->keys[i]    = parent->keys[i+1];
-                parent->pkeys[i]    = parent->pkeys[i+1];
-                parent->child[i+1] = std::move(parent->child[i+2]);
+                parent->pkeys[i]   = parent->pkeys[i+1];
+                parent->child[i+1] = parent->child[i+2];
             }
         }
 
@@ -599,12 +612,15 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
         parent->size--;
         if(parent->size == 0) {
             // happens only when current is root
-            this->root = parent->child[indexFound];
+            manager.setRoot(rightSibling);
+            manager.addFreeIndexLocation(parent->pageNum);
         }
-        parent = child;
+
+        manager.addFreeIndexLocation(child->pageNum);
         rightSibling->hasUncommitedChanges = true;
         parent->hasUncommitedChanges = true;
         child->hasUncommitedChanges = true;
+        parent = rightSibling;
     }
 }
 
