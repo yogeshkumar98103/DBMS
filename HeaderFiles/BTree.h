@@ -120,7 +120,7 @@ private:
     void splitNode(Node* parent, Node* child, int indexFound);
     void bfsTraverseUtilDebug(Node* start);
     bool traverseUtil(Node* start, const std::function<bool(row_t row)>& callback);
-
+    void remove(const key_t& key);
 
 //    bool remove(const keyRNPair& key);
 
@@ -141,12 +141,9 @@ private:
     // MARK:- HELPER FUNCTIONS
 //   void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete);
 
-//    bool deleteAtLeaf(Node* leaf, int index);
-
-
-//    void borrowFromLeftSibling(int indexFound, Node* parent, Node* child);
-
-//    void borrowFromRightSibling(int indexFound, Node* parent, Node* child);
+    bool deleteAtLeaf(result_t& indexInLeaf);
+    void borrowFromLeftSibling(int indexFound, Node* parent, Node* child);
+    void borrowFromRightSibling(int indexFound, Node* parent, Node* child);
 
 //    void mergeWithSibling(int indexFound, Node*& parent, Node* child);
 

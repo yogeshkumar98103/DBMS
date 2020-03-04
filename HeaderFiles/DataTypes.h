@@ -4,7 +4,7 @@
 
 #ifndef DBMS_DATATYPES_H
 #define DBMS_DATATYPES_H
-
+#include <cstring>
 enum class DataType{
     Int,
     Float,
