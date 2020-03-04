@@ -337,7 +337,7 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const pkey_t pkey){
 
         // If child is of size branchingFactor-1 fix it and then traverse in
         bool flag = false;
-        Node *leftSibling, *rightSibling;
+        Node* leftSibling = nullptr, rightSibling = nullptr;
         leftSibling = current->getChildNode(manager, indexFound - 1);
 
         if(indexFound > 0 && leftSibling->size > branchingFactor-1){
@@ -388,7 +388,7 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback
 
             // If child is of size branchingFactor-1 fix it and then traverse in
             bool flag = false;
-            Node* leftSibling, rightSibling;
+            Node* leftSibling = nullptr, rightSibling = nullptr;
 
             if(indexFound > 0 && (leftSibling = current->getChildNode(manager, indexFound - 1)) && leftSibling->size > branchingFactor-1){
                 borrowFromLeftSibling(indexFound, current, child, leftSibling);
@@ -511,7 +511,7 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
         leftSibling->rightSibling_ =  child->rightSibling_;
         if(leftSibling->rightSibling_) {
             // leftSibling->rightSibling_->leftSibling_ = leftSibling;
-            rightSibling->leftSibling_ = leftSibling;
+            rightSibling->leftSibling_ = leftSibling->pageNum;
         }
         if(leftSibling->isLeaf){
             for(int i = 0; i < child->size; ++i){
@@ -530,7 +530,7 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
         else{
             leftSibling->keys[branchingFactor-1] = parent->keys[indexFound-1];
             leftSibling->pkeys[branchingFactor-1] = parent->pkeys[indexFound-1];
-            leftSibling->child[branchingFactor] = std::move(child->child[0]);
+            leftSibling->child[branchingFactor] = child->child[0];
 
             for(int i = 0; i < child->size; ++i){
                 leftSibling->keys[branchingFactor+i] = child->keys[i];
@@ -559,9 +559,10 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
         parent = leftSibling;
     }
     else if(indexFound < parent->size){
-        child->rightSibling_ = rightSibling->rightSibling_;
-        if(child->rightSibling_) {
-            child->rightSibling_->leftSibling_ = child;
+
+        rightSibling->leftSibling_ = child->leftSibling_;
+        if(leftSibling){
+            leftSibling->rightSibling_ = rightSibling->pageNum;
         }
         if(rightSibling->isLeaf){
             for(int i = rightSibling->size - 1 ; i >= 0; i--){
