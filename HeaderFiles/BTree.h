@@ -110,6 +110,15 @@ public:
     void traverseAllWithKey(const std::string& strKey);
     void bfsTraverseDebug();
 
+    /// true  -> (key, pkey) found and deleted
+    /// false -> (key, pkey) not found
+    bool remove(const std::string& key, const pkey_t pkey);
+
+    /// true  -> all found records deleted
+    /// false -> some data inconsistency
+    template <typename callback_t>
+    bool remove(const std::string& key, const callback_t& callback, const pkey_t pkey = -1);
+
 private:
 
     result_t searchUtil(const key_t& key, const pkey_t& pKey);
@@ -120,31 +129,22 @@ private:
     void splitNode(Node* parent, Node* child, int indexFound);
     void bfsTraverseUtilDebug(Node* start);
     bool traverseUtil(Node* start, const std::function<bool(row_t row)>& callback);
-    void remove(const key_t& key);
-
-//    bool remove(const keyRNPair& key);
-
 
 //    void greaterThanEquals(const key_t& key);
-//
 //    void smallerThanEquals(const key_t& key);
-//
 //    void greaterThan(const key_t& key);
-//
 //    void smallerThan(const key_t& key);
-
 //    void removeWithKey(const key_t& key);
-
     void traverseAllLeaf();
 
 private:
     // MARK:- HELPER FUNCTIONS
 //   void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete);
 
-    bool deleteAtLeaf(result_t& indexInLeaf);
-    void borrowFromLeftSibling(int indexFound, Node* parent, Node* child);
-    void borrowFromRightSibling(int indexFound, Node* parent, Node* child);
-    void mergeWithSibling(int indexFound, Node*& parent, Node* child);
+    row_t deleteAtLeaf(Node* node, int index);
+    void borrowFromLeftSibling(int indexFound, Node* parent, Node* child, Node* leftSibling);
+    void borrowFromRightSibling(int indexFound, Node* parent, Node* child, Node* rightSibling);
+    void mergeWithSibling(int indexFound, Node*& parent, Node* child, Node* leftSibling, Node* rightSibling);
 
 //    void iterateLeftLeaf(Node* node, int startIndex);
 

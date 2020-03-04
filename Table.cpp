@@ -27,6 +27,7 @@ Table::Table(std::string tableName, const std::string& fileName){
     this->rowsPerPage = 0;
     this->rowStackPtr = 0;
     this->rowStackOffset = 0;
+    this->nextPKey = 1;
 }
 
 Table::~Table(){
@@ -63,6 +64,10 @@ void Table::createColumnIndex(){
     int32_t count = columnNames.size();
     for(int index = 0; index < count; ++index){
         columnIndex[columnNames[index]] = index;
+        if(columnTypes[index] == DataType::String){
+            BPTNode<dbms::string>::pKeyOffset = P_KEY_OFFSET(columnSizes[index]);
+            BPTNode<dbms::string>::childOffset = CHILD_OFFSET(columnSizes[index]);
+        }
     }
 }
 
@@ -115,6 +120,11 @@ void Table::serailizeColumnMetadata(char* buffer){
     memcpy(buffer + offset, &numRows, sizeof(row_t));
     offset += sizeof(row_t);
 
+    // Write Next pKey
+    this->nextPKey = 1;
+    memcpy(buffer + offset, &this->nextPKey, sizeof(pkey_t));
+    offset += sizeof(pkey_t);
+
     // Write Number of columns
     memcpy(buffer + offset, &size1, sizeof(int32_t));
     offset += sizeof(int32_t);
@@ -147,6 +157,8 @@ void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
 
     memcpy(&this->numRows, metadataBuffer + offset, sizeof(row_t));
     offset += sizeof(row_t);
+    memcpy(&this->nextPKey, metadataBuffer + offset, sizeof(pkey_t));
+    offset += sizeof(pkey_t);
     memcpy(&size, metadataBuffer + offset, sizeof(int32_t));
     offset += sizeof(int32_t);
 
@@ -239,31 +251,35 @@ bool Table::createIndex(int index, const std::string& filename){
 }
 
 bool Table::insertBTree(std::vector<std::string>& data, row_t row){
-    static pkey_t pkey = 1;
+    // static pkey_t pkey = 1;
+    pkey_t pKey = nextPKey;
     for(int i = 0; i < indexed.size(); ++i){
         if(!indexed[i]) continue;
         bool res;
         switch(columnTypes[i]){
-            case DataType::Int:
-                res = dynamic_cast<BPTree<int>*>(trees[i].get())->insert(data[i], pkey, row);
-                break;
-            case DataType::Float:
-                res = dynamic_cast<BPTree<float>*>(trees[i].get())->insert(data[i], pkey, row);
-                break;
-            case DataType::Char:
-                res = dynamic_cast<BPTree<char>*>(trees[i].get())->insert(data[i], pkey, row);
-                break;
-            case DataType::Bool:
-                res = dynamic_cast<BPTree<bool>*>(trees[i].get())->insert(data[i], pkey, row);
-                break;
-            case DataType::String:
-                BPTNode<dbms::string>::pKeyOffset = P_KEY_OFFSET(columnSizes[i]);
-                BPTNode<dbms::string>::childOffset = CHILD_OFFSET(columnSizes[i]);
-                res = dynamic_cast<BPTree<dbms::string>*>(trees[i].get())->insert(data[i], pkey, row);
-                break;
+            BTREE_HANDLER(res, trees[i].get(), insert(data[i], pkey, row));
+//            case DataType::Int:
+//                res = dynamic_cast<BPTree<int>*>(trees[i].get())->insert(data[i], pkey, row);
+//                break;
+//            case DataType::Float:
+//                res = dynamic_cast<BPTree<float>*>(trees[i].get())->insert(data[i], pkey, row);
+//                break;
+//            case DataType::Char:
+//                res = dynamic_cast<BPTree<char>*>(trees[i].get())->insert(data[i], pkey, row);
+//                break;
+//            case DataType::Bool:
+//                res = dynamic_cast<BPTree<bool>*>(trees[i].get())->insert(data[i], pkey, row);
+//                break;
+//            case DataType::String:
+//                // BPTNode<dbms::string>::pKeyOffset = P_KEY_OFFSET(columnSizes[i]);
+//                // BPTNode<dbms::string>::childOffset = CHILD_OFFSET(columnSizes[i]);
+//                res = dynamic_cast<BPTree<dbms::string>*>(trees[i].get())->insert(data[i], pkey, row);
+//                break;
         }
         if(!res) return false;
     }
-    ++pkey;
+    ++nextPKey;
     return true;
 }
+
+

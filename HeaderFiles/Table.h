@@ -47,6 +47,24 @@ public:
     void commitChanges();
 };
 
+#define BTREE_HANDLER(res, tree, handler)                                    \
+    case DataType::Int:                                                     \
+        res = dynamic_cast<BPTree<int>*>(tree)->handler;                    \
+        break;                                                              \
+    case DataType::Float:                                                   \
+        res = dynamic_cast<BPTree<float>*>(tree)->handler;                 \
+        break;                                                              \
+    case DataType::Char:                                                    \
+        res = dynamic_cast<BPTree<char>*>(tree)->handler;                   \
+        break;                                                              \
+    case DataType::Bool:                                                    \
+        res = dynamic_cast<BPTree<bool>*>(tree)->handler;                   \
+        break;                                                              \
+    case DataType::String:                                                  \
+        res = dynamic_cast<BPTree<dbms::string>*>(tree)->handler;           \
+        break;
+
+
 class Table{
     friend class Cursor;
     friend class TableManager;
@@ -57,6 +75,8 @@ class Table{
     int32_t rowStackOffset;
     bool tableOpen;
     std::string tableName;
+    pkey_t nextPKey;
+
 public:
     bool tableIsIndexed;
     int32_t anyIndex;
@@ -83,6 +103,8 @@ public:
     row_t nextFreeRowLocation();
     void addFreeRowLocation(row_t location);
     bool insertBTree(std::vector<std::string>& data, row_t row);
+    bool removeBTree(int index, std::string& key);
+    bool updateBTree(std::vector<std::string>& data, row_t row);
     Cursor start();
     Cursor end();
 

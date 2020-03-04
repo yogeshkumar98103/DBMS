@@ -85,7 +85,7 @@ enum class ComparisonType{
     error
 };
 
-ComparisonType findConparisonType(const char* op){
+ComparisonType findComparisonType(const char* op){
     if(strcmp(op, "==") == 0){
         return ComparisonType::equal;
     }
@@ -110,8 +110,8 @@ ComparisonType findConparisonType(const char* op){
 struct Condition{
     bool isCompound{};
     std::string col;
-    void* data1{};
-    void* data2{};
+    std::string data1;
+    std::string data2;
     ComparisonType compType1{};
     ComparisonType compType2{};
 };
@@ -583,20 +583,16 @@ private:
         char op1[3], op2[3];
         char combineOperator[3];
         int count = sscanf(ptr, "%[^><=!& ] %2[><=!] %2[^&] %[&] %[^><=!& ] %2[><=!] %[^&\n] ", col1, op1, val1, combineOperator,col2, op2, val2);
-        // printw("%d\n", count);
-        // printw("\"%s\"  \"%s\"  \"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"\n", col1, op1 ,val1, combineOperator, col2, op2, val2);
         if(count == 3){
-            // printw("\"%s\"  \"%s\"  \"%s\"\n", col1, op1 ,val1);
             cond.isCompound = false;
             cond.col = col1;
             cond.data1 = val1;
-            cond.compType1 = findConparisonType(op1);
+            cond.compType1 = findComparisonType(op1);
             if(cond.compType1 == ComparisonType::error){
                 return PrepareResult::invalidOperator;
             }
         }
         else if(count == 7){
-            // printw("\"%s\"  \"%s\"  \"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"\n", col1, op1 ,val1, combineOperator, col2, op2, val2);
             cond.isCompound = true;
             if(strcmp(col1, col2) != 0){
                 return PrepareResult::comparisonOnDifferentRows;
@@ -607,8 +603,8 @@ private:
             cond.col = col1;
             cond.data1 = val1;
             cond.data2 = val2;
-            cond.compType1 = findConparisonType(op1);
-            cond.compType2 = findConparisonType(op2);
+            cond.compType1 = findComparisonType(op1);
+            cond.compType2 = findComparisonType(op2);
             if(cond.compType1 == ComparisonType::error || cond.compType2 == ComparisonType::error){
                 return PrepareResult::invalidOperator;
             }

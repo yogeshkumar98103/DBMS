@@ -263,6 +263,29 @@ private:
         }
         // TODO: Search Btree for given condition
         //       Read Matched Records
+        if(!updateStatement->condition.isCompound){
+            // Single Column
+            int colIndex = table->columnIndex[updateStatement->condition.col];
+            switch(updateStatement->condition.compType1){
+                case ComparisonType::equal:
+                    //table->deleteBTree() //(updateStatement->condition.data1);
+                    //auto updateStatement = dynamic_cast<UpdateStatement*>(statement.get());
+                    break;
+                case ComparisonType::notEqual:
+                    break;
+                case ComparisonType::lessThan:
+                    break;
+                case ComparisonType::greaterThan:
+                    break;
+                case ComparisonType::lessThanOrEqual:
+                    break;
+                case ComparisonType::greaterThanOrEqual:
+                    break;
+                case ComparisonType::error:
+                    break;
+            }
+        }
+
 
         // Call this lambda on every matched row
         auto updateCallback = [&](Cursor& cursor)->bool{
@@ -290,7 +313,78 @@ private:
         // TODO: Search Btree for given condition
         //       Read Matched Records
         //       Write Updated Value
+        auto callback = [&](std::vector<std::string>& data)->bool{
+            for(auto& str: data){
+                std::cout << str << " | ";
+            }
+            std::cout << std::endl;
+            return true;
+        };
+
+        auto condition = deleteStatement->condition;
+        if(!condition.isCompound){
+            // Single Column
+            int colIndex = table->columnIndex[condition.col];
+            std::pair<bool, row_t> deleteRes;
+            switch(condition.compType1){
+                case ComparisonType::equal:
+                    deleteRes = remove(colIndex, condition.data1, table, callback);
+                    break;
+                case ComparisonType::notEqual:
+                    break;
+                case ComparisonType::lessThan:
+                    break;
+                case ComparisonType::greaterThan:
+                    break;
+                case ComparisonType::lessThanOrEqual:
+                    break;
+                case ComparisonType::greaterThanOrEqual:
+                    break;
+                case ComparisonType::error:
+                    break;
+            }
+            if(!deleteRes.first){
+                printf("Some Error Occurred while deleting Rows.\n");
+            }
+            printf("Deleted %d rows", deleteRes.second);
+        }
+
         return ExecuteResult::faliure;
+    }
+
+    template <typename callback_t>
+    std::pair<bool, row_t> remove(int index, std::string& key, std::shared_ptr<Table>& table, const callback_t& callback){
+        bool res = true;
+        row_t numRowsRemoved = 0;
+
+        auto removeCallback = [&](row_t row)->bool{
+            Cursor cursor(table.get());
+            cursor.row = row;
+            char* buffer = cursor.value();
+            const auto size = table->columnNames.size();
+            std::vector<std::string> data(size);
+            pkey_t pkey;
+            bool deserializeRes = deserializeRow(buffer, table, data, pkey);
+            if(!deserializeRes) return false;
+            callback(data);
+            for(int i = 0; i < table->indexed.size(); ++i){
+                if(!table->indexed[i] || i == index) continue;
+                bool res = true;
+                std::string key = data[i];
+                switch(table->columnTypes[i]){
+                    BTREE_HANDLER(res, table->trees[i].get(), remove(key, pkey))
+                }
+                if(!res) return false;
+            }
+            table->addFreeRowLocation(row);
+            ++numRowsRemoved;
+            return true;
+        };
+
+        switch(table->columnTypes[index]){
+            BTREE_HANDLER(res, table->trees[index].get(), remove(key, removeCallback))
+        }
+        return std::make_pair(res, numRowsRemoved);
     }
 
     ExecuteResult executeDrop(std::unique_ptr<QueryStatement>& statement){
@@ -404,6 +498,52 @@ private:
                 }
                 offset += table->columnSizes[i];
             }
+        }
+        catch(...){
+            return false;
+        }
+        return true;
+    }
+    static bool deserializeRow(char* buffer, std::shared_ptr<Table>& table, std::vector<std::string>& row, pkey_t& pkey){
+        try{
+            int32_t size = table->columnNames.size();
+            int j = 0;
+            int32_t offset = 0;
+            for(int32_t i = 0; i < size; ++i){
+                switch(table->columnTypes[i]){
+                    case DataType::Int:
+                        int32_t dataInt;
+                        memcpy(&dataInt, buffer + offset, table->columnSizes[i]);
+                        row[i] = std::move(std::to_string(dataInt));
+                        break;
+
+                    case DataType::Float:
+                        float dataFloat;
+                        memcpy(&dataFloat, buffer + offset, table->columnSizes[i]);
+                        row[i] = std::move(std::to_string(dataFloat));
+                        break;
+
+                    case DataType::Char:
+                        char dataChar;
+                        memcpy(&dataChar, buffer + offset, table->columnSizes[i]);
+                        row[i] = std::move(std::string(1, dataChar));
+                        break;
+
+                    case DataType::Bool:
+                        bool dataBool;
+                        memcpy(&dataBool, buffer + offset, table->columnSizes[i]);
+                        row[i] = dataBool? "true": "false";
+                        break;
+
+                    case DataType::String:
+                        std::string dataString(table->columnSizes[i], '\0');
+                        memcpy((void*)dataString.c_str(), buffer + offset, table->columnSizes[i]);
+                        row[i] = std::move(dataString);
+                        break;
+                }
+                offset += table->columnSizes[i];
+            }
+            memcpy(&pkey, buffer + offset, sizeof(pkey_t));
         }
         catch(...){
             return false;
