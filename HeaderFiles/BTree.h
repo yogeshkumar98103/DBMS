@@ -144,8 +144,7 @@ private:
     bool deleteAtLeaf(result_t& indexInLeaf);
     void borrowFromLeftSibling(int indexFound, Node* parent, Node* child);
     void borrowFromRightSibling(int indexFound, Node* parent, Node* child);
-
-//    void mergeWithSibling(int indexFound, Node*& parent, Node* child);
+    void mergeWithSibling(int indexFound, Node*& parent, Node* child);
 
 //    void iterateLeftLeaf(Node* node, int startIndex);
 

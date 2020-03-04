@@ -556,3 +556,109 @@ void BPTree<key_t>::borrowFromRightSibling(int indexFound, Node* parent, Node* c
     child->size++;
     rightSibling->size--;
 }
+
+template <typename key_t>
+void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child){
+    int maxSize = 2 * branchingFactor - 1;
+    if(indexFound > 0){
+        Node* leftSibling = parent->child[indexFound-1];
+
+        leftSibling->rightSibling_ =  child->rightSibling_;
+        if(leftSibling->rightSibling_) {
+            leftSibling->rightSibling_->leftSibling_ = leftSibling;
+        }
+        if(leftSibling->isLeaf){
+            for(int i = 0; i < child->size; ++i){
+                leftSibling->keys[branchingFactor+i-1] = child->keys[i];
+                leftSibling->pkeys[branchingFactor+i-1] = child->pkeys[i];
+                leftSibling->child[branchingFactor+i-1] = child->child[i];
+            }
+
+            for(int i = indexFound-1; i < parent->size-1; ++i){
+                parent->keys[i]    = parent->keys[i+1];
+                parent->pkeys[i]    = parent->pkeys[i+1];
+                parent->child[i+1] = std::move(parent->child[i+2]);
+            }
+            leftSibling->size = maxSize - 1;
+        }
+        else{
+            leftSibling->keys[branchingFactor-1] = parent->keys[indexFound-1];
+            leftSibling->pkeys[branchingFactor-1] = parent->pkeys[indexFound-1];
+            leftSibling->child[branchingFactor] = std::move(child->child[0]);
+
+            for(int i = 0; i < child->size; ++i){
+                leftSibling->keys[branchingFactor+i] = child->keys[i];
+                leftSibling->pkeys[branchingFactor+i] = child->pkeys[i];
+                leftSibling->child[branchingFactor+i+1]  = child->child[i+1];
+            }
+
+            for(int i = indexFound-1; i < parent->size-1; ++i){
+                parent->keys[i]    = parent->keys[i+1];
+                parent->pkeys[i]    = parent->pkeys[i+1];
+                parent->child[i+1] = parent->child[i+2];
+            }
+            leftSibling->size = maxSize;
+        }
+
+        parent->size--;
+        if(parent->size == 0){
+            // happens only when parent is root
+            this->root = parent->child[indexFound-1];
+        }
+        parent = leftSibling;
+        leftSibling->hasUncommitedChanges = true;
+        parent->hasUncommitedChanges = true;
+        child->hasUncommitedChanges = true;
+    }
+    else if(indexFound < parent->size){
+        auto rightSibling = parent->child[indexFound+1];
+        child->rightSibling_ = rightSibling->rightSibling_;
+        if(child->rightSibling_) {
+            child->rightSibling_->leftSibling_ = child;
+        }
+        if(rightSibling->isLeaf){
+
+            for(int i = 0; i < rightSibling->size; ++i){
+                child->keys[branchingFactor+i-1] = rightSibling->keys[i];
+                child->pkeys[branchingFactor+i-1] = rightSibling->pkeys[i];
+                child->child[branchingFactor+i-1] = rightSibling->child[i];
+            }
+            child->size = maxSize - 1;
+
+            for(int i = indexFound; i < parent->size-1; ++i){
+                parent->keys[i]    = parent->keys[i+1];
+                parent->pkeys[i]    = parent->pkeys[i+1];
+                parent->child[i+1] = std::move(parent->child[i+2]);
+            }
+        }
+        else {
+            child->keys[branchingFactor-1] = parent->keys[indexFound];
+            child->pkeys[branchingFactor-1] = parent->pkeys[indexFound];
+            child->child[branchingFactor] = std::move(rightSibling->child[0]);
+
+            for(int i = 0; i < rightSibling->size; ++i){
+                child->keys[branchingFactor+i] = rightSibling->keys[i];
+                child->pkeys[branchingFactor+i] = rightSibling->pkeys[i];
+                child->child[branchingFactor+i+1]  = std::move(rightSibling->child[i+1]);
+            }
+            child->size = maxSize;
+
+            for(int i = indexFound; i < parent->size-1; ++i){
+                parent->keys[i]    = parent->keys[i+1];
+                parent->pkeys[i]    = parent->pkeys[i+1];
+                parent->child[i+1] = std::move(parent->child[i+2]);
+            }
+        }
+
+
+        parent->size--;
+        if(parent->size == 0) {
+            // happens only when current is root
+            this->root = parent->child[indexFound];
+        }
+        parent = child;
+        rightSibling->hasUncommitedChanges = true;
+        parent->hasUncommitedChanges = true;
+        child->hasUncommitedChanges = true;
+    }
+}
