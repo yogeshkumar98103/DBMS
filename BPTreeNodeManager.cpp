@@ -221,6 +221,7 @@ void BPTreeNodeManager<node_t>::setRoot(node_t* newNode){
 template <typename node_t>
 node_t* BPTreeNodeManager<node_t>::read(int32_t pageNum){
     if(pageNum == rootPageNum) return root.get();
+    if(pageNum < 0) return nullptr;
     auto node = base_t::read(pageNum, [&](node_t* node){
         node->readHeader(2 * branchingFactor - 1, keySize);
     });
