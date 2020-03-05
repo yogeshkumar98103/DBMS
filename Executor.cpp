@@ -324,7 +324,16 @@ private:
         auto condition = deleteStatement->condition;
         if(!condition.isCompound){
             // Single Column
-            int colIndex = table->columnIndex[condition.col];
+            auto itr = table->columnIndex.find(condition.col);
+            if(itr == table->columnIndex.end()){
+                printf("Wrong Column Name.\n");
+                return ExecuteResult::faliure;
+            }
+            int colIndex = itr->second;
+            if(!table->indexed[colIndex]){
+                printf("Index not found on given column.\n");
+                return ExecuteResult::faliure;
+            }
             std::pair<bool, row_t> deleteRes;
             switch(condition.compType1){
                 case ComparisonType::equal:
@@ -343,13 +352,14 @@ private:
                 case ComparisonType::error:
                     break;
             }
-            if(!deleteRes.first){
+            printf("Deleted %d row(s).\n", deleteRes.second);
+            if(!deleteRes.first) {
                 printf("Some Error Occurred while deleting Rows.\n");
+                return ExecuteResult::faliure;
             }
-            printf("Deleted %d rows", deleteRes.second);
         }
 
-        return ExecuteResult::faliure;
+        return ExecuteResult::success;
     }
 
     template <typename callback_t>

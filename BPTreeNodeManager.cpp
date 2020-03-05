@@ -191,7 +191,7 @@ void BPTreeNodeManager<node_t>::addFreeIndexLocation(row_t location){
     int32_t offset = stackPtrOffset + stackPtr * sizeof(row_t) + sizeof(int32_t);
     ++stackPtr;
     if(offset + sizeof(row_t) > PAGE_SIZE){
-        printf("Stack Overflow occurred at %d\n", index);
+        printf("Stack Overflow occurred at %d\n", location);
         throw std::runtime_error("STACK OVERFLOWS HEADER PAGE");
     }
     memcpy(buffer + offset, &location, sizeof(row_t));

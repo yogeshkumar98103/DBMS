@@ -27,6 +27,18 @@ BPTNode<key_t>* BPTNode<key_t>::getChildNode(manager_t& manager, int32_t index){
     return manager.read(child[index]);
 }
 
+template <typename key_t>
+BPTNode<key_t>* BPTNode<key_t>:: getRightSibling(manager_t& manager){
+    if(rightSibling_ <= 0) return nullptr;
+    return manager.read(rightSibling_);
+}
+
+template <typename key_t>
+BPTNode<key_t>* BPTNode<key_t>:: getLeftSibling(manager_t& manager){
+    if(leftSibling_ <= 0) return nullptr;
+    return manager.read(leftSibling_);
+}
+
 // ------------------------ READ / WRITE HEADER ------------------------
 template<typename key_t>
 void BPTNode<key_t>::writeHeader() {
@@ -98,7 +110,7 @@ bool BPTree<key_t>::insert(const std::string& keyStr, pkey_t pkey, row_t row) {
         splitRoot();
     }
 
-    auto current = root;
+    auto current = manager.root.get();;
     Node* child;
 
     while(!current->isLeaf) {
@@ -337,10 +349,9 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const pkey_t pkey){
 
         // If child is of size branchingFactor-1 fix it and then traverse in
         bool flag = false;
-        Node* leftSibling = nullptr, rightSibling = nullptr;
-        leftSibling = current->getChildNode(manager, indexFound - 1);
+        Node *leftSibling = nullptr, *rightSibling = nullptr;
 
-        if(indexFound > 0 && leftSibling->size > branchingFactor-1){
+        if(indexFound > 0 && (leftSibling = current->getChildNode(manager, indexFound - 1)) && leftSibling->size > branchingFactor-1){
             borrowFromLeftSibling(indexFound, current, child, leftSibling);
             current = child;
         }
@@ -388,7 +399,7 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback
 
             // If child is of size branchingFactor-1 fix it and then traverse in
             bool flag = false;
-            Node* leftSibling = nullptr, rightSibling = nullptr;
+            Node* leftSibling = nullptr, *rightSibling = nullptr;
 
             if(indexFound > 0 && (leftSibling = current->getChildNode(manager, indexFound - 1)) && leftSibling->size > branchingFactor-1){
                 borrowFromLeftSibling(indexFound, current, child, leftSibling);
@@ -410,7 +421,7 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback
                 auto row = deleteAtLeaf(current, indexFound);
                 if(!callback(row)) return false;
             }
-            if(pkey == -1) return true;
+            if(pkey != -1) return true;
         }
         else return true;
     }
@@ -418,10 +429,10 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback
 
 template <typename key_t>
 row_t BPTree<key_t>::deleteAtLeaf(Node* node, int index){
-    Node* root = manager.getRoot();
+    Node* root = manager.root.get();
     int res = node->child[index];
     if(root->isLeaf && root->size == 1){
-        root->size == 0;
+        root->size = 0;
         root->hasUncommitedChanges = true;
         return res;
     }
@@ -461,11 +472,11 @@ void BPTree<key_t>::borrowFromLeftSibling(int indexFound, Node* parent, Node* ch
         parent->keys[indexFound-1] = leftSibling->keys[leftSibling->size-2];
         parent->pkeys[indexFound-1] = leftSibling->pkeys[leftSibling->size-2];
     }
+    leftSibling->size--;
+    child->size++;
     child->hasUncommitedChanges = true;
     parent->hasUncommitedChanges = true;
     leftSibling->hasUncommitedChanges = true;
-    leftSibling->size--;
-    child->size++;
 }
 
 template <typename key_t>
@@ -497,11 +508,11 @@ void BPTree<key_t>::borrowFromRightSibling(int indexFound, Node* parent, Node* c
         }
         rightSibling->child[rightSibling->size-1] = rightSibling->child[rightSibling->size];
     }
+    child->size++;
+    rightSibling->size--;
     child->hasUncommitedChanges = true;
     parent->hasUncommitedChanges = true;
     rightSibling->hasUncommitedChanges = true;
-    child->size++;
-    rightSibling->size--;
 }
 
 template <typename key_t>
@@ -512,6 +523,7 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
         if(leftSibling->rightSibling_) {
             // leftSibling->rightSibling_->leftSibling_ = leftSibling;
             rightSibling->leftSibling_ = leftSibling->pageNum;
+            rightSibling->hasUncommitedChanges = true;
         }
         if(leftSibling->isLeaf){
             for(int i = 0; i < child->size; ++i){
@@ -559,9 +571,9 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
         parent = leftSibling;
     }
     else if(indexFound < parent->size){
-
         rightSibling->leftSibling_ = child->leftSibling_;
         if(leftSibling){
+            leftSibling->hasUncommitedChanges = true;
             leftSibling->rightSibling_ = rightSibling->pageNum;
         }
         if(rightSibling->isLeaf){
@@ -629,15 +641,14 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
 // ----------------------- TRAVERSAL ----------------------
 template <typename key_t>
 bool BPTree<key_t>::traverse(const std::function<bool(row_t row)>& callback){
-    return traverseUtil(manager.root.get(), callback);
+    Node* root = manager.root.get();
+    while(!root->isLeaf) root = root->getChildNode(manager, 0);
+    return iterateRightLeaf(root,0, callback);
 }
 
 template <typename key_t>
-void BPTree<key_t>::traverseAllLeaf(){
-    Node* root = manager.root.get();
-    while(!root->isLeaf) root = root->getChildNode(manager, 0);
-
-    iterateRightLeaf(root,0);
+bool BPTree<key_t>::BFStraverse(const std::function<bool(row_t row)>& callback){
+    return traverseUtil(manager.root.get(), callback);
 }
 
 template <typename key_t>
@@ -718,12 +729,13 @@ void BPTree<key_t>::decrementLinkedList(result_t& currentPosition){
 }
 
 template <typename key_t>
-void BPTree<key_t>::iterateRightLeaf(Node* node, int startIndex){
+bool BPTree<key_t>::iterateRightLeaf(Node* node, int startIndex, const std::function<bool(row_t row)>& callback){
     while(node!=nullptr){
         for(int i=startIndex;i<node->size;i++){
-            printf("%d (%d)\n", node->keys[i]);
+            if(!callback(node->child[i])) return false;
         }
-        node = node->rightSibling_;
+        node = node->getRightSibling(manager);
         startIndex=0;
     }
+    return true;
 }

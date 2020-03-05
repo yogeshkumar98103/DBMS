@@ -252,12 +252,11 @@ bool Table::createIndex(int index, const std::string& filename){
 
 bool Table::insertBTree(std::vector<std::string>& data, row_t row){
     // static pkey_t pkey = 1;
-    pkey_t pKey = nextPKey;
     for(int i = 0; i < indexed.size(); ++i){
         if(!indexed[i]) continue;
         bool res;
         switch(columnTypes[i]){
-            BTREE_HANDLER(res, trees[i].get(), insert(data[i], pkey, row));
+            BTREE_HANDLER(res, trees[i].get(), insert(data[i], nextPKey, row));
 //            case DataType::Int:
 //                res = dynamic_cast<BPTree<int>*>(trees[i].get())->insert(data[i], pkey, row);
 //                break;

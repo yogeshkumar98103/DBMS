@@ -54,6 +54,8 @@ public:
 
     // Setters and Getters
     Node* getChildNode(manager_t& manager, int32_t index);
+    Node* getRightSibling(manager_t& manager);
+    Node* getLeftSibling(manager_t& manager);
     inline void readHeader(int32_t maxSize, int32_t keySize);
     void writeHeader();
     void allocate(int32_t maxSize, int32_t keySize);
@@ -107,6 +109,7 @@ public:
     bool insert(const std::string& keyStr, pkey_t pkey, row_t row);
     bool search(const std::string& str);
     bool traverse(const std::function<bool(row_t row)>& callback) override;
+    bool BFStraverse(const std::function<bool(row_t row)>& callback);
     void traverseAllWithKey(const std::string& strKey);
     void bfsTraverseDebug();
 
@@ -135,20 +138,20 @@ private:
 //    void greaterThan(const key_t& key);
 //    void smallerThan(const key_t& key);
 //    void removeWithKey(const key_t& key);
-    void traverseAllLeaf();
 
 private:
     // MARK:- HELPER FUNCTIONS
-//   void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete);
-
+    // Delete Helpers
     row_t deleteAtLeaf(Node* node, int index);
     void borrowFromLeftSibling(int indexFound, Node* parent, Node* child, Node* leftSibling);
     void borrowFromRightSibling(int indexFound, Node* parent, Node* child, Node* rightSibling);
     void mergeWithSibling(int indexFound, Node*& parent, Node* child, Node* leftSibling, Node* rightSibling);
 
-//    void iterateLeftLeaf(Node* node, int startIndex);
+    // Traverse Helpers
+    bool iterateRightLeaf(Node* node, int startIndex, const std::function<bool(row_t row)>& callback);
 
-   void iterateRightLeaf(Node* node, int startIndex);
+//   void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete);
+//   void iterateLeftLeaf(Node* node, int startIndex);
 };
 
 #include "../BTreeNew.cpp"

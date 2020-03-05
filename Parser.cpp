@@ -256,7 +256,12 @@ private:
         int n = 0;
         char val[2];
         // Get Opening quote
-        if(sscanf(*ptr, " %1[\"]%n", val, &n) != 1) return false;
+        if(sscanf(*ptr, " %1[\"]%n", val, &n) != 1){
+            // Value without opening brace
+            sscanf(*ptr, "%255[^,&}) \t\n]s%n", field, &n);
+            (*ptr) += n;
+            return true;
+        };
         (*ptr) += n;
 
         // Get String
@@ -582,7 +587,45 @@ private:
         char val1[255], val2[255];
         char op1[3], op2[3];
         char combineOperator[3];
-        int count = sscanf(ptr, "%[^><=!& ] %2[><=!] %2[^&] %[&] %[^><=!& ] %2[><=!] %[^&\n] ", col1, op1, val1, combineOperator,col2, op2, val2);
+        int n;
+//        int count = sscanf(ptr, "%[^><=!& ] %2[><=!] \"%[^&]\" %2[&] %[^><=!& ] %2[><=!] \"%[^&\n]\" ", col1, op1, val1, combineOperator,col2, op2, val2);
+        int count = sscanf(ptr, "%[^><=!& \t\n] %2[><=!]%n", col1, op1, &n);
+        if(count < 2) return PrepareResult::syntaxError;
+        ptr += n;
+        getNextValue(&ptr, val1);
+        count = sscanf(ptr, " %2[&] %[^><=!& \t\n] %2[><=!]%n", combineOperator, col2, op2, &n);
+        if(count == 3){
+            ptr += n;
+            getNextValue(&ptr, val2);
+            cond.isCompound = true;
+            if(strcmp(col1, col2) != 0){
+                return PrepareResult::comparisonOnDifferentRows;
+            }
+            if(strcmp(combineOperator, "&&") != 0){
+                return PrepareResult::syntaxError;
+            }
+            cond.col = col1;
+            cond.data1 = val1;
+            cond.data2 = val2;
+            cond.compType1 = findComparisonType(op1);
+            cond.compType2 = findComparisonType(op2);
+            if(cond.compType1 == ComparisonType::error || cond.compType2 == ComparisonType::error){
+                return PrepareResult::invalidOperator;
+            }
+        }
+        else if(count <= 0){
+            cond.isCompound = false;
+            cond.col = col1;
+            cond.data1 = val1;
+            cond.compType1 = findComparisonType(op1);
+            if(cond.compType1 == ComparisonType::error){
+                return PrepareResult::invalidOperator;
+            }
+        }
+        else{
+            return PrepareResult::syntaxError;
+        }
+        return PrepareResult::success;
         if(count == 3){
             cond.isCompound = false;
             cond.col = col1;
