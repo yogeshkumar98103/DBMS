@@ -371,6 +371,9 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const pkey_t pkey){
     if(indexFound < current->size) {
         if (current->keys[indexFound] == key){
             deleteAtLeaf(current, indexFound);
+            if(indexFound == current->size && root->size != 0){
+                removeHelper(key, pkey);
+            }
             return true;
         }
     }
