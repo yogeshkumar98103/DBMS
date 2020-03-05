@@ -439,8 +439,8 @@ void BPTree<key_t>::removeHelper(const key_t& key, const pkey_t pkey){
     while(!current->isLeaf){
         int indexFound = binarySearch(current, key, pkey);
         if(indexFound < current->size && current->keys[indexFound] == key && current->pkeys[indexFound] == pkey){
-            std::pair<key_t,pkey_t> maxInLeftChild = getMax(current->getChildNode(manager, indexFound));
-            current->keys[indexFound] = maxInLeftChild.first;
+            auto maxInLeftChild = getMax(current->getChildNode(manager, indexFound));
+            current->keys[indexFound] = std::move(maxInLeftChild.first);
             current->pkeys[indexFound] = maxInLeftChild.second;
             return;
         }

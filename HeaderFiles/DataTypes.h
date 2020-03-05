@@ -30,7 +30,17 @@ namespace dbms{
             str_ = new(memoryPool) char[size];
         }
 
-        string(const string& s) = delete;
+        string(const string& s){
+            strcpy(str_, s.str_);
+            size = s.size;
+        }
+
+        // string(const string& s) = delete;
+
+        void refcopy(string& s){
+            s.str_ = str_;
+            s.size = size;
+        }
 
         string(const std::string& s){
             strcpy(str_, s.c_str());
