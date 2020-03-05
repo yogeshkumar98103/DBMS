@@ -357,7 +357,7 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const pkey_t pkey){
             borrowFromLeftSibling(indexFound, current, child, leftSibling);
             current = child;
         }
-        else if(indexFound < current->size - 1 && (rightSibling = current->getChildNode(manager, indexFound + 1)) && rightSibling->size > branchingFactor-1){
+        else if(indexFound < current->size && (rightSibling = current->getChildNode(manager, indexFound + 1)) && rightSibling->size > branchingFactor-1){
             borrowFromRightSibling(indexFound, current, child, rightSibling);
             current = child;
         }
@@ -410,7 +410,7 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback
                 borrowFromLeftSibling(indexFound, current, child, leftSibling);
                 current = child;
             }
-            else if(indexFound < current->size - 1 && (rightSibling = current->getChildNode(manager, indexFound + 1)) && rightSibling->size > branchingFactor-1){
+            else if(indexFound < current->size && (rightSibling = current->getChildNode(manager, indexFound + 1)) && rightSibling->size > branchingFactor-1){
                 borrowFromRightSibling(indexFound, current, child, rightSibling);
                 current = child;
             }
@@ -554,6 +554,7 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
     if(indexFound > 0){
         leftSibling->rightSibling_ =  child->rightSibling_;
         if(leftSibling->rightSibling_) {
+            rightSibling = child->getRightSibling(manager);
             rightSibling->leftSibling_ = leftSibling->pageNum;
             rightSibling->hasUncommitedChanges = true;
         }
@@ -606,7 +607,8 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
     }
     else if(indexFound < parent->size){
         rightSibling->leftSibling_ = child->leftSibling_;
-        if(leftSibling){
+        if(rightSibling->leftSibling_){
+            leftSibling = child->getLeftSibling(manager);
             leftSibling->rightSibling_ = rightSibling->pageNum;
             leftSibling->hasUncommitedChanges = true;
         }
