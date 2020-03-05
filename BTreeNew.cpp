@@ -124,7 +124,7 @@ bool BPTree<key_t>::insert(const std::string& keyStr, pkey_t pkey, row_t row) {
         // Child is full. Split it first and then go down
         splitNode(current, child, indexFound);
 
-        if(key <= current->keys[indexFound]) {
+        if(key < current->keys[indexFound] || ((key == current->keys[indexFound]) && (pkey <= current->pkeys[indexFound]))) {
             current = current->getChildNode(manager, indexFound);
         }
         else{
@@ -134,7 +134,7 @@ bool BPTree<key_t>::insert(const std::string& keyStr, pkey_t pkey, row_t row) {
 
     int insertAtIndex = 0;
     for(int i = current->size-1; i >= 0; --i){
-        if(key <= current->keys[i] || (key == current->keys[i] && pkey <= current->pkeys[i])){
+        if(key < current->keys[i] || (key == current->keys[i] && pkey <= current->pkeys[i])){
             current->keys[i+1] = current->keys[i];
             current->child[i+1] = current->child[i];
             current->pkeys[i+1] = current->pkeys[i];
@@ -226,9 +226,10 @@ void BPTree<key_t>::splitNode(Node* parent, Node* child, int indexFound){
     parent->keys[indexFound] = child->keys[branchingFactor - 1];
     parent->pkeys[indexFound] = child->pkeys[branchingFactor - 1];
 
-    int32_t nextPageNo = manager.nextFreeIndexLocation();
-    Node* newSibling = manager.read(nextPageNo);
-    manager.incrementPageNum();
+    // int32_t nextPageNo = manager.nextFreeIndexLocation();
+    // Node* newSibling = manager.read(nextPageNo);
+    // manager.incrementPageNum();
+    auto newSibling = manager.newNode();
     newSibling->isLeaf = child->isLeaf;
 
     // Copy right half keys to newNode
@@ -246,10 +247,15 @@ void BPTree<key_t>::splitNode(Node* parent, Node* child, int indexFound){
         newSibling->child[branchingFactor-1] = child->child[maxSize];
     }
 
-    newSibling->leftSibling_ = parent->child[indexFound];
-    newSibling->rightSibling_ = parent->getChildNode(manager, indexFound)->rightSibling_;
+    // newSibling->leftSibling_ = parent->child[indexFound];
+    // newSibling->rightSibling_ = parent->getChildNode(manager, indexFound)->rightSibling_;
+    newSibling->leftSibling_ = child->pageNum;
+    newSibling->rightSibling_ = child->rightSibling_;
     if(newSibling->rightSibling_){
-        newSibling->getChildNode(manager, newSibling->rightSibling_)->leftSibling_ = newSibling->pageNum;
+        //newSibling->getChildNode(manager, newSibling->rightSibling_)->leftSibling_ = newSibling->pageNum;
+        auto rightSibling = newSibling->getRightSibling(manager);
+        rightSibling->leftSibling_ = newSibling->pageNum;
+        rightSibling->hasUncommitedChanges = true;
     }
 
     child->rightSibling_ = newSibling->pageNum;
@@ -317,7 +323,7 @@ int32_t BPTree<key_t>::binarySearch(Node* node, const key_t& key, const pkey_t p
 
     while(l <= r) {
         mid = (l+r)/2;
-        if((key < node->keys[mid]) || (key == node->keys[mid] && pkey < node->pkeys[mid])){
+        if((key < node->keys[mid]) || (key == node->keys[mid] && pkey <= node->pkeys[mid])){
             r = mid-1;
             ans = mid;
         }
@@ -385,8 +391,6 @@ template <typename key_t>
 template <typename callback_t>
 bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback, const pkey_t pkey){
     auto key = convertDataType<key_t>(keyStr);
-    bfsTraverseDebug();
-    return true;
     while(true){
         Node* root = manager.root.get();
         if(root == nullptr || root->size == 0){
@@ -433,6 +437,7 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback
                 }
                 if(!callback(row)) return false;
             }
+            else return true;
             if(pkey != -1) return true;
         }
         else return true;
