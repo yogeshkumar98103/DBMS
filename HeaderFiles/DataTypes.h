@@ -5,6 +5,8 @@
 #ifndef DBMS_DATATYPES_H
 #define DBMS_DATATYPES_H
 #include <cstring>
+#include <iostream>
+
 enum class DataType{
     Int,
     Float,
@@ -83,7 +85,12 @@ namespace dbms{
         bool operator==(const string& other) const{
             return (strcmp(str_, other.str_) == 0);
         }
+
+        // friend std::ostream & operator << (std::ostream &out, const string &c);
     };
 }
+
+std::ostream & operator << (std::ostream &out, const dbms::string &c);
+
 
 #endif //DBMS_DATATYPES_H

@@ -384,6 +384,8 @@ template <typename key_t>
 template <typename callback_t>
 bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback, const pkey_t pkey){
     auto key = convertDataType<key_t>(keyStr);
+    bfsTraverseDebug();
+    return true;
     while(true){
         Node* root = manager.root.get();
         if(root == nullptr || root->size == 0){
@@ -717,7 +719,7 @@ template <typename key_t>
 void BPTree<key_t>::bfsTraverseUtilDebug(Node* start){
     if(start == nullptr) return;
 
-    printf("%d# ", start->size);
+    printf("%d# ", start->isLeaf);
     for(int32_t i = 0; i < start->size; ++i){
         std::cout << start->keys[i] << "(" << start->pkeys[i] << ") ";
     }
@@ -725,11 +727,10 @@ void BPTree<key_t>::bfsTraverseUtilDebug(Node* start){
 
     if(!start->isLeaf) {
         for (int i = 0; i < start->size + 1; ++i) {
-            bfsTraverseUtil(start->getChildNode(manager, i));
+            bfsTraverseUtilDebug(start->getChildNode(manager, i));
         }
     }
 }
-
 
 // ----------------------- HELPERS ----------------------
 template <typename key_t>
