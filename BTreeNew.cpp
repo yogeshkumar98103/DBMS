@@ -420,13 +420,40 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback
         int indexFound = binarySearch(current, key, -1);
         if(indexFound < current->size) {
             if (current->keys[indexFound] == key){
+                pkey_t pkey = current->pkeys[indexFound];
                 auto row = deleteAtLeaf(current, indexFound);
+                if(indexFound == current->size && root->size != 0){
+                    removeHelper(key, pkey);
+                }
                 if(!callback(row)) return false;
             }
             if(pkey != -1) return true;
         }
         else return true;
     }
+}
+
+template <typename key_t>
+void BPTree<key_t>::removeHelper(const key_t& key, const pkey_t pkey){
+    Node* current = manager.root.get();
+    while(!current->isLeaf){
+        int indexFound = binarySearch(current, key, pkey);
+        if(indexFound < current->size && current->keys[indexFound] == key && current->pkeys[indexFound] == pkey){
+            std::pair<key_t,pkey_t> maxInLeftChild = getMax(current->getChildNode(manager, indexFound));
+            current->keys[indexFound] = maxInLeftChild.first;
+            current->pkeys[indexFound] = maxInLeftChild.second;
+            return;
+        }
+        current = current->getChildNode(manager, indexFound);
+    }
+}
+
+template <typename key_t>
+std::pair<key_t,pkey_t> BPTree<key_t>::getMax(Node* node){
+    while(!node->isLeaf){
+        node = node->getChildNode(manager, node->size);
+    }
+    return std::make_pair(node->keys[node->size-1],node->pkeys[node->size-1]);
 }
 
 template <typename key_t>
@@ -466,13 +493,14 @@ void BPTree<key_t>::borrowFromLeftSibling(int indexFound, Node* parent, Node* ch
         for(int i=child->size-1;i>=0;i--){
             child->keys[i+1]  = child->keys[i];
             child->pkeys[i+1]  = child->pkeys[i];
+            child->child[i+2] = child->child[i+1];
         }
         child->child[1] = child->child[0];
-        child->keys[0]  = leftSibling->keys[leftSibling->size-1];
-        child->pkeys[0]  = leftSibling->pkeys[leftSibling->size-1];
-        child->child[0] = leftSibling->child[leftSibling->size-1];
-        parent->keys[indexFound-1] = leftSibling->keys[leftSibling->size-2];
-        parent->pkeys[indexFound-1] = leftSibling->pkeys[leftSibling->size-2];
+        child->keys[0]  = parent->keys[indexFound-1];
+        child->pkeys[0]  = parent->pkeys[indexFound-1];
+        parent->keys[indexFound-1] = leftSibling->keys[leftSibling->size-1];
+        parent->pkeys[indexFound-1] = leftSibling->pkeys[leftSibling->size-1];
+        child->child[0] = leftSibling->child[leftSibling->size];
     }
     leftSibling->size--;
     child->size++;
