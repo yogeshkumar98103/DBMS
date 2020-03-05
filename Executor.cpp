@@ -200,6 +200,7 @@ private:
         }
 
         int32_t size = selectStatement->selectAllCols ? table->columnNames.size(): indices.size();
+        row_t count = 0;
         auto callback = [&](row_t row)->bool{
             Cursor cursor(table.get());
             cursor.row = row;
@@ -211,12 +212,14 @@ private:
                 std::cout << str << " | ";
             }
             std::cout << std::endl;
+            ++count;
             return true;
         };
 
         if(selectStatement->selectAllRows){
             bool traverseRes = table->trees[table->anyIndex]->traverse(callback);
             if(!traverseRes) return ExecuteResult::unexpectedError;
+            printf("Found %d row(s).\n", count);
             return ExecuteResult::success;
         }
 
@@ -386,7 +389,7 @@ private:
                 }
                 if(!res) return false;
             }
-            table->addFreeRowLocation(row);
+            table->deleteRow(row);
             ++numRowsRemoved;
             return true;
         };

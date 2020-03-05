@@ -71,8 +71,12 @@ class Table{
     int32_t rowSize;
     int32_t rowsPerPage;
     row_t numRows = 0;
-    int32_t rowStackPtr;
-    int32_t rowStackOffset;
+    // int32_t rowStackPtr;
+    // int32_t rowStackOffset;
+
+    row_t* rowStack;
+    int32_t stackSize;
+
     bool tableOpen;
     std::string tableName;
     pkey_t nextPKey;
@@ -102,6 +106,7 @@ public:
     void increaseRowCount();
     row_t nextFreeRowLocation();
     void addFreeRowLocation(row_t location);
+    bool deleteRow(row_t row);
     bool insertBTree(std::vector<std::string>& data, row_t row);
     bool removeBTree(int index, std::string& key);
     bool updateBTree(std::vector<std::string>& data, row_t row);

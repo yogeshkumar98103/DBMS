@@ -19,10 +19,13 @@ class BPTreeNodeManager: public Pager<node_t>{
 
 public:
 
+    row_t stackSize;
+    row_t* indexStack;
+
     int32_t keySize;
-    int32_t stackPtr;
+    // int32_t stackPtr;
     int32_t branchingFactor;
-    int32_t stackPtrOffset;
+    // int32_t stackPtrOffset;
     row_t numPages;
     row_t rootPageNum;
     std::unique_ptr<node_t> root;
@@ -41,6 +44,8 @@ public:
     bool getHeader();
     void incrementPageNum();
     void decrementPageNum();
+    node_t* newNode();
+    void deleteNode(node_t* pageNum);
     void deserializeHeaderMetaData();
     void serializeHeaderMetaData();
 };

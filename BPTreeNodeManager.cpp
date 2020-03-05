@@ -20,8 +20,10 @@ BPTreeNodeManager<node_t>::BPTreeNodeManager(const char* fileName, int32_t branc
     this->numPages = 0;
     this->branchingFactor = branchingFactor_;
     this->keySize = keySize_;
-    this->stackPtr = 0;
-    this->stackPtrOffset = 0;
+    // this->stackPtr = 0;
+    // this->stackPtrOffset = 0;
+    this->stackSize = 0;
+    this->indexStack = nullptr;
 
     if(!this->open(fileName)){
         throw std::runtime_error("Unable to Open Table");
@@ -42,6 +44,7 @@ bool BPTreeNodeManager<node_t>::getRoot(){
     }
 
     root = std::make_unique<node_t>();
+    // root->isLeaf = true;
     this->fileLength = static_cast<uint32_t>(lseek(this->fileDescriptor, 0, SEEK_END));
     this->maxPages = (this->fileLength + PAGE_SIZE - 1) / PAGE_SIZE;
     if(this->maxPages > rootPageNum){
@@ -99,9 +102,11 @@ void BPTreeNodeManager<node_t>::deserializeHeaderMetaData(){
     memcpy(&this->rootPageNum, buffer + offset, sizeof(row_t));
     offset += sizeof(row_t);
 
-    memcpy(&this->stackPtr, buffer + offset, sizeof(int32_t));
-    this->stackPtrOffset = offset;
-    offset += sizeof(int32_t);
+    stackSize = (PAGE_SIZE - offset)/sizeof(row_t);
+    indexStack = new(buffer + offset) row_t[stackSize];
+    // memcpy(&this->stackPtr, buffer + offset, sizeof(int32_t));
+    // this->stackPtrOffset = offset;
+    // offset += sizeof(int32_t);
 }
 
 template <typename node_t>
@@ -116,9 +121,15 @@ void BPTreeNodeManager<node_t>::serializeHeaderMetaData(){
     memcpy(buffer + offset, &this->rootPageNum, sizeof(row_t));
     offset += sizeof(row_t);
 
-    this->stackPtrOffset = offset;
-    memcpy( buffer + offset, &this->stackPtr, sizeof(int32_t));
-    offset += sizeof(int32_t);
+    // this->stackPtrOffset = offset;
+    if(indexStack == nullptr){
+        stackSize = (PAGE_SIZE - offset)/sizeof(row_t);
+        indexStack = new(buffer + offset) row_t[stackSize];
+        indexStack[0] = 0;
+    }
+    // int32_t stackIndex = indexStack == nullptr ? 0 : indexStack[0];
+    // memcpy( buffer + offset, &stackIndex, sizeof(int32_t));
+    // offset += sizeof(int32_t);
 }
 
 template <typename node_t>
@@ -159,15 +170,20 @@ bool BPTreeNodeManager<node_t>::flushPage(node_t* node){
 
 template <typename node_t>
 row_t BPTreeNodeManager<node_t>::nextFreeIndexLocation(){
-    if(stackPtr == 0) return numPages + 1;
-    Page* page = this->header.get();
-    char* buffer = page->buffer.get();
-    int32_t offset = stackPtrOffset + (stackPtr - 1) * sizeof(row_t) + sizeof(int32_t);
-    row_t nextRow;
-    memcpy(&nextRow, buffer + offset, sizeof(row_t));
-    stackPtr--;
-    memcpy(buffer, &stackPtr, sizeof(int32_t));
+    if(indexStack[0] == 0) return numPages + 1;
+    row_t nextRow = indexStack[indexStack[0]];
+    indexStack[0]--;
+    this->header->hasUncommitedChanges = true;
     return nextRow;
+//    if(stackPtr == 0) return numPages + 1;
+//    Page* page = this->header.get();
+//    char* buffer = page->buffer.get();
+//    int32_t offset = stackPtrOffset + (stackPtr - 1) * sizeof(row_t) + sizeof(int32_t);
+//    row_t nextRow;
+//    memcpy(&nextRow, buffer + offset, sizeof(row_t));
+//    stackPtr--;
+//    memcpy(buffer, &stackPtr, sizeof(int32_t));
+//    return nextRow;
 }
 
 template <typename node_t>
@@ -186,15 +202,37 @@ void BPTreeNodeManager<node_t>::decrementPageNum(){
 
 template <typename node_t>
 void BPTreeNodeManager<node_t>::addFreeIndexLocation(row_t location){
-    Page* page = this->header.get();
-    char* buffer = page->buffer.get();
-    int32_t offset = stackPtrOffset + stackPtr * sizeof(row_t) + sizeof(int32_t);
-    ++stackPtr;
-    if(offset + sizeof(row_t) > PAGE_SIZE){
-        printf("Stack Overflow occurred at %d\n", location);
+    ++indexStack[0];
+    if(indexStack[0] >= stackSize){
+        printf("Stack Overflow occurred in main table.\n");
         throw std::runtime_error("STACK OVERFLOWS HEADER PAGE");
     }
-    memcpy(buffer + offset, &location, sizeof(row_t));
+    indexStack[indexStack[0]] = location;
+    this->header->hasUncommitedChanges = true;
+
+//    Page* page = this->header.get();
+//    char* buffer = page->buffer.get();
+//    int32_t offset = stackPtrOffset + stackPtr * sizeof(row_t) + sizeof(int32_t);
+//    ++stackPtr;
+//    if(offset + sizeof(row_t) > PAGE_SIZE){
+//        printf("Stack Overflow occurred at %d\n", location);
+//        throw std::runtime_error("STACK OVERFLOWS HEADER PAGE");
+//    }
+//    memcpy(buffer + offset, &location, sizeof(row_t));
+}
+
+template<typename node_t>
+node_t* BPTreeNodeManager<node_t>::newNode(){
+    row_t pageNum = nextFreeIndexLocation();
+    incrementPageNum();
+    return read(pageNum);
+}
+
+template<typename node_t>
+void BPTreeNodeManager<node_t>::deleteNode(node_t* node){
+    decrementPageNum();
+    addFreeIndexLocation(node->pageNum);
+    node->hasUncommitedChanges = false;
 }
 
 template<typename node_t>

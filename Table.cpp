@@ -25,8 +25,10 @@ Table::Table(std::string tableName, const std::string& fileName){
     this->numRows = 0;
     this->rowSize = 0;
     this->rowsPerPage = 0;
-    this->rowStackPtr = 0;
-    this->rowStackOffset = 0;
+    // this->rowStackPtr = 0;
+    // this->rowStackOffset = 0;
+    this->rowStack = nullptr;
+    this->stackSize = 0;
     this->nextPKey = 1;
 }
 
@@ -143,9 +145,13 @@ void Table::serailizeColumnMetadata(char* buffer){
         memcpy(buffer + offset, &type, sizeof(DataType));
         offset += sizeof(DataType);
     }
-    rowStackPtr = 0;
-    memcpy(buffer + offset, &rowStackPtr, sizeof(int32_t));
-    rowStackOffset = offset + sizeof(int32_t);
+
+    // int32_t rowStackPtr = 0;
+    // memcpy(buffer + offset, &rowStackPtr, sizeof(int32_t));
+    stackSize = (PAGE_SIZE - offset)/sizeof(row_t);
+    rowStack = new(buffer + offset) row_t[stackSize];
+    rowStack[0] = 0;
+    // rowStackOffset = offset + sizeof(int32_t);
 }
 
 void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
@@ -184,32 +190,39 @@ void Table::deSerailizeColumnMetadata(char* metadataBuffer) {
         offset += sizeof(DataType);
     }
 
-    memcpy(&rowStackPtr, (metadataBuffer + offset), sizeof(int32_t));
-    rowStackOffset = offset + sizeof(int32_t);
+    // memcpy(&stackIndex, (metadataBuffer + offset), sizeof(int32_t));
+    // stackIndex = new(metadataBuffer + offset) int32_t;
+    // offset += sizeof(int32_t);
+    // int32_t rowStackOffset = offset + sizeof(int32_t);
+    stackSize = (PAGE_SIZE - offset)/sizeof(row_t);
+    rowStack = new(metadataBuffer + offset) row_t[stackSize];
 }
 
 row_t Table::nextFreeRowLocation(){
-    if(rowStackPtr == 0) return numRows;
-    Page* page = pager->header.get();
-    char* buffer = page->buffer.get();
-    int32_t offset = (rowStackPtr - 1) * sizeof(row_t) + rowStackOffset;
-    row_t nextRow;
-    memcpy(&nextRow, buffer + offset, sizeof(row_t));
-    rowStackPtr--;
-    memcpy(buffer, &rowStackPtr, sizeof(int32_t));
+    if(rowStack[0] == 0) return numRows;
+    row_t nextRow = rowStack[rowStack[0]];
+    rowStack[0]--;
+    pager->header->hasUncommitedChanges = true;
+    // char* buffer = page->buffer.get();
+    // int32_t offset = (stackIndex - 1) * sizeof(row_t) + rowStackOffset;
+    // memcpy(&nextRow, buffer + offset, sizeof(row_t));
+    // memcpy(buffer, &stackIndex, sizeof(int32_t));
     return nextRow;
 }
 
 void Table::addFreeRowLocation(row_t location){
-    Page* page = pager->header.get();
-    char* buffer = page->buffer.get();
-    int32_t offset = rowStackPtr * sizeof(row_t) + sizeof(int32_t);
-    rowStackPtr++;
-    if(offset + sizeof(row_t) > PAGE_SIZE){
+    ++rowStack[0];
+    if(rowStack[0] >= stackSize){
         printf("Stack Overflow occurred in main table.\n");
         throw std::runtime_error("STACK OVERFLOWS HEADER PAGE");
     }
-    memcpy(buffer + offset, &location, sizeof(row_t));
+    rowStack[rowStack[0]] = location;
+    pager->header->hasUncommitedChanges = true;
+    // Page* page = pager->header.get();
+    // char* buffer = page->buffer.get();
+    // int32_t offset = rowStackPtr * sizeof(row_t) + sizeof(int32_t);
+    // rowStackPtr++;
+    // memcpy(buffer + offset, &location, sizeof(row_t));
 }
 
 int32_t Table::getRowSize() const{
@@ -218,9 +231,11 @@ int32_t Table::getRowSize() const{
 
 void Table::increaseRowCount() {
     this->numRows++;
+    this->nextPKey++;
     Page* page = pager->header.get();
     char* buffer = page->buffer.get();
     memcpy(buffer, &numRows, sizeof(row_t));
+    memcpy(buffer + sizeof(row_t), &nextPKey, sizeof(pkey_t));
     page->hasUncommitedChanges = true;
 }
 
@@ -251,33 +266,24 @@ bool Table::createIndex(int index, const std::string& filename){
 }
 
 bool Table::insertBTree(std::vector<std::string>& data, row_t row){
-    // static pkey_t pkey = 1;
     for(int i = 0; i < indexed.size(); ++i){
         if(!indexed[i]) continue;
         bool res;
         switch(columnTypes[i]){
             BTREE_HANDLER(res, trees[i].get(), insert(data[i], nextPKey, row));
-//            case DataType::Int:
-//                res = dynamic_cast<BPTree<int>*>(trees[i].get())->insert(data[i], pkey, row);
-//                break;
-//            case DataType::Float:
-//                res = dynamic_cast<BPTree<float>*>(trees[i].get())->insert(data[i], pkey, row);
-//                break;
-//            case DataType::Char:
-//                res = dynamic_cast<BPTree<char>*>(trees[i].get())->insert(data[i], pkey, row);
-//                break;
-//            case DataType::Bool:
-//                res = dynamic_cast<BPTree<bool>*>(trees[i].get())->insert(data[i], pkey, row);
-//                break;
-//            case DataType::String:
-//                // BPTNode<dbms::string>::pKeyOffset = P_KEY_OFFSET(columnSizes[i]);
-//                // BPTNode<dbms::string>::childOffset = CHILD_OFFSET(columnSizes[i]);
-//                res = dynamic_cast<BPTree<dbms::string>*>(trees[i].get())->insert(data[i], pkey, row);
-//                break;
         }
         if(!res) return false;
     }
-    ++nextPKey;
+    return true;
+}
+
+bool Table::deleteRow(row_t row){
+    this->numRows--;
+    Page* page = pager->header.get();
+    char* buffer = page->buffer.get();
+    memcpy(buffer, &numRows, sizeof(row_t));
+    page->hasUncommitedChanges = true;
+    addFreeRowLocation(row);
     return true;
 }
 

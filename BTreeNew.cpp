@@ -159,12 +159,14 @@ void BPTree<key_t>::splitRoot(){
     //              /     \
     //            root   newNode
 
-    int32_t nextPageLocation = manager.nextFreeIndexLocation();
-    auto newRoot = manager.read(nextPageLocation);
-    manager.incrementPageNum();
-    nextPageLocation = manager.nextFreeIndexLocation();
-    auto newNode = manager.read(nextPageLocation);
-    manager.incrementPageNum();
+//    int32_t nextPageLocation = manager.nextFreeIndexLocation();
+//    auto newRoot = manager.read(nextPageLocation);
+//    manager.incrementPageNum();
+//    nextPageLocation = manager.nextFreeIndexLocation();
+//    auto newNode = manager.read(nextPageLocation);
+//    manager.incrementPageNum();
+    auto newRoot = manager.newNode();
+    auto newNode = manager.newNode();
 
     auto root = manager.root.get();
     if (root->isLeaf) {
@@ -206,7 +208,7 @@ void BPTree<key_t>::splitRoot(){
     manager.setRoot(newRoot);
     manager.root->isLeaf = false;
 
-    manager.root->hasUncommitedChanges = true;
+    root->hasUncommitedChanges = true;
     newNode->hasUncommitedChanges = true;
     newRoot->hasUncommitedChanges = true;
 }
@@ -521,7 +523,6 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
     if(indexFound > 0){
         leftSibling->rightSibling_ =  child->rightSibling_;
         if(leftSibling->rightSibling_) {
-            // leftSibling->rightSibling_->leftSibling_ = leftSibling;
             rightSibling->leftSibling_ = leftSibling->pageNum;
             rightSibling->hasUncommitedChanges = true;
         }
@@ -561,20 +562,22 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
         parent->size--;
         if(parent->size == 0){
             // happens only when parent is root
-            manager.addFreeIndexLocation(parent->pageNum);
+            // manager.addFreeIndexLocation(parent->pageNum);
+            manager.deleteNode(parent);
             manager.setRoot(leftSibling);
         }
-        manager.addFreeIndexLocation(child->pageNum);
+        manager.deleteNode(child);
+        // manager.addFreeIndexLocation(child->pageNum);
         leftSibling->hasUncommitedChanges = true;
         parent->hasUncommitedChanges = true;
-        child->hasUncommitedChanges = true;
+        // child->hasUncommitedChanges = false;
         parent = leftSibling;
     }
     else if(indexFound < parent->size){
         rightSibling->leftSibling_ = child->leftSibling_;
         if(leftSibling){
-            leftSibling->hasUncommitedChanges = true;
             leftSibling->rightSibling_ = rightSibling->pageNum;
+            leftSibling->hasUncommitedChanges = true;
         }
         if(rightSibling->isLeaf){
             for(int i = rightSibling->size - 1 ; i >= 0; i--){
@@ -626,13 +629,14 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
         if(parent->size == 0) {
             // happens only when current is root
             manager.setRoot(rightSibling);
-            manager.addFreeIndexLocation(parent->pageNum);
+            manager.deleteNode(parent);
+            // manager.addFreeIndexLocation(parent->pageNum);
         }
-
-        manager.addFreeIndexLocation(child->pageNum);
+        manager.deleteNode(child);
+        // manager.addFreeIndexLocation(child->pageNum);
         rightSibling->hasUncommitedChanges = true;
         parent->hasUncommitedChanges = true;
-        child->hasUncommitedChanges = true;
+        // child->hasUncommitedChanges = false;
         parent = rightSibling;
     }
 }
@@ -642,6 +646,7 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
 template <typename key_t>
 bool BPTree<key_t>::traverse(const std::function<bool(row_t row)>& callback){
     Node* root = manager.root.get();
+    if(root->size == 0) return true;
     while(!root->isLeaf) root = root->getChildNode(manager, 0);
     return iterateRightLeaf(root,0, callback);
 }
