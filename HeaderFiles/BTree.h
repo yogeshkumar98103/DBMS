@@ -146,7 +146,8 @@ private:
     void borrowFromLeftSibling(int indexFound, Node* parent, Node* child, Node* leftSibling);
     void borrowFromRightSibling(int indexFound, Node* parent, Node* child, Node* rightSibling);
     void mergeWithSibling(int indexFound, Node*& parent, Node* child, Node* leftSibling, Node* rightSibling);
-
+    void removeHelper(const key_t& key, const pkey_t pkey);
+    void getMax(Node* node);
     // Traverse Helpers
     bool iterateRightLeaf(Node* node, int startIndex, const std::function<bool(row_t row)>& callback);
 
