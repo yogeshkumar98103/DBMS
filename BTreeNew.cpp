@@ -417,7 +417,7 @@ bool BPTree<key_t>::remove(const std::string& keyStr, const callback_t& callback
         }
 
         // Now we are in a leaf node
-        int indexFound = binarySearch(current, key, pkey);
+        int indexFound = binarySearch(current, key, -1);
         if(indexFound < current->size) {
             if (current->keys[indexFound] == key){
                 auto row = deleteAtLeaf(current, indexFound);
