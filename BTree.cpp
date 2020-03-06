@@ -5,8 +5,8 @@
 #include "HeaderFiles/BTree.h"
 #include "HeaderFiles/Constants.h"
 
-template <> int
-convert(const std::string& str){
+template <>
+int convert(const std::string& str){
     return std::stoi(str);
 }
 

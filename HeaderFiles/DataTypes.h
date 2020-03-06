@@ -15,16 +15,20 @@ enum class DataType{
     String,
 };
 
+template <typename T>
+T convertDataType(const std::string& str);
+
 namespace dbms{
     class string{
     public:
         char* str_;
         int32_t size;
+
         string() = default;
 
         string(char* memoryPool, int32_t size_){
             this->size = size_;
-            str_ = new(memoryPool) char[size];
+            str_ = new(memoryPool) char[size_];
         }
 
         void setBuffer(char* memoryPool, int32_t size_){
@@ -46,19 +50,23 @@ namespace dbms{
 
         string(const std::string& s){
             strcpy(str_, s.c_str());
+            size = s.size();
         }
 
         string& operator=(const string& s){
             strcpy(str_, s.str_);
+            size = s.size;
             return (*this);
         }
         string& operator=(const char* s){
             strcpy(str_, s);
+            size = strlen(s);
             return (*this);
         }
 
         string& operator=(const std::string& s){
             strcpy(str_, s.c_str());
+            size = s.size();
             return (*this);
         }
 

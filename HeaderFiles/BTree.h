@@ -16,9 +16,6 @@
 #include "BPTreeNodeManager.h"
 #include "DataTypes.h"
 
-template <typename T>
-T convertDataType(const std::string& str);
-
 /*
  * -------------------- BPTNode --------------------
  * 1. isLeaf            => bool
