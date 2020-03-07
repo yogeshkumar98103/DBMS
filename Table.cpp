@@ -99,6 +99,7 @@ void Table::calculateRowInfo(){
     for(int32_t size: columnSizes){
         this->rowSize += size;
     }
+    this->rowSize += sizeof(pkey_t);
     this->rowsPerPage = PAGE_SIZE/rowSize;
     int32_t count = columnSizes.size();
     this->indexed.assign(count, false);
@@ -270,7 +271,7 @@ bool Table::insertBTree(std::vector<std::string>& data, row_t row){
         if(!indexed[i]) continue;
         bool res;
         switch(columnTypes[i]){
-            BTREE_HANDLER(res, trees[i].get(), insert(data[i], nextPKey, row));
+            BTREE_HANDLER(res, trees[i].get(), insert(data[i], nextPKey - 1, row));
         }
         if(!res) return false;
     }

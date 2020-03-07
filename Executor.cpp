@@ -170,7 +170,7 @@ private:
         cursor.row = table->nextFreeRowLocation();
         char* buffer = cursor.value();
         if(buffer == nullptr) return ExecuteResult::unexpectedError;
-        auto serializeRes = serializeRow(buffer, table.get(), insertStatement->data);
+        auto serializeRes = serializeRow(buffer, table.get(), insertStatement->data, table->nextPKey);
         if(serializeRes != ExecuteResult::success) return serializeRes;
         table->increaseRowCount();
         cursor.addedChangesToCommit();
@@ -296,7 +296,7 @@ private:
             if(buffer == nullptr) return false;
             auto tempBuffer = std::make_unique<char[]>(cursor.table->getRowSize() + 1);
             strncpy(tempBuffer.get(), buffer, table->getRowSize());
-            auto serializeRes = serializeRow(tempBuffer.get(), cursor.table, updateStatement->colValues, false , &indices);
+            auto serializeRes = serializeRow(tempBuffer.get(), cursor.table, updateStatement->colValues, -1, false , &indices);
             if(serializeRes != ExecuteResult::success) return false;
             strncpy(buffer, tempBuffer.get(), table->getRowSize());
             cursor.addedChangesToCommit();
@@ -410,7 +410,7 @@ private:
     }
 
 private:
-    static ExecuteResult serializeRow(char* buffer, Table* table, std::vector<std::string>& data, bool serializeAll = true, std::vector<int32_t>* indices = nullptr){
+    static ExecuteResult serializeRow(char* buffer, Table* table, std::vector<std::string>& data, pkey_t pkey = -1, bool serializeAll = true, std::vector<int32_t>* indices = nullptr){
         int32_t offset = 0;
         int32_t j = 0;
         int32_t size = table->columnNames.size();
@@ -465,6 +465,14 @@ private:
                 ++j;
             }
             offset += table->columnSizes[i];
+        }
+        if(pkey != -1){
+            try{
+                memcpy(buffer + offset, &pkey, sizeof(pkey_t));
+            }
+            catch(...){
+                printf("Error Saving Primary Key.\n");
+            }
         }
         return ExecuteResult::success;
     }

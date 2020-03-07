@@ -14,6 +14,7 @@ template <> inline bool convertDataType<bool>(const std::string& str)  {  return
 template <> inline float convertDataType<float>(const std::string& str){  return std::stof(str);  }
 template <> inline dbms::string convertDataType<dbms::string>(const std::string& str){  return dbms::string(str);  }
 
+
 template <typename key_t>
 BPTree<key_t>::BPTree(const char* filename, int32_t branchingFactor_, int32_t keySize_):manager(filename, branchingFactor_, keySize_){
     this->branchingFactor = branchingFactor_;
@@ -686,6 +687,8 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
 // ----------------------- TRAVERSAL ----------------------
 template <typename key_t>
 bool BPTree<key_t>::traverse(const std::function<bool(row_t row)>& callback){
+    bfsTraverseDebug();
+    return true;
     Node* root = manager.root.get();
     if(root->size == 0) return true;
     while(!root->isLeaf) root = root->getChildNode(manager, 0);

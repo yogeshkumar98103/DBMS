@@ -79,11 +79,11 @@ class Table{
 
     bool tableOpen;
     std::string tableName;
-    pkey_t nextPKey;
 
 public:
     bool tableIsIndexed;
     int32_t anyIndex;
+    pkey_t nextPKey;
 
     std::vector<std::string> columnNames;
     std::vector<DataType> columnTypes;
