@@ -11,10 +11,17 @@ template <> inline dbms::string convertDataType<dbms::string>(const std::string&
 // ---------------------- SeqPageReader ----------------------
 
 SeqPageReader::~SeqPageReader(){
-    if(inFileDescriptor != -1)  ::close(inFileDescriptor);
-    if(outFileDescriptor != -1) ::close(outFileDescriptor);
+    flushRemaining();
+}
+
+void SeqPageReader::flushRemaining(){
     if(readThread.joinable()) readThread.join();
     if(writeThread.joinable()) writeThread.join();
+    if(outFileDescriptor != -1){
+        fileSize = lseek(outFileDescriptor, 0, SEEK_END);
+    }
+    if(inFileDescriptor != -1)  ::close(inFileDescriptor);
+    if(outFileDescriptor != -1) ::close(outFileDescriptor);
 }
 
 void SeqPageReader::initialise(const char* inFileName, const char* outFileName, uint32_t headerOffset){
@@ -66,7 +73,7 @@ void SeqPageReader::flushOutputToSecondary(){
 }
 
 off_t SeqPageReader::getOutputFileSize(){
-    return lseek(outFileDescriptor, 0, SEEK_END);
+    return fileSize;
 }
 
 
@@ -108,13 +115,34 @@ void SeqPageReader::flushOutput(off_t outputBuffSize){
 void convertToText(const std::string& infileName, const std::string& outFileName){
     int fd = open(infileName.c_str(), O_RDONLY);
     int fd2 = open(outFileName.c_str(), O_WRONLY | O_TRUNC | O_CREAT, S_IRWXU);
-    char buffer[blockSize];
+    char buffer[blockSize] = {0};
     KRPair<int>* data;
     int size = blockSize/sizeof(KRPair<int>);
     data = new(buffer) KRPair<int>[size];
     std::cout << size * SEQ_WRITE_BLOCKS << std::endl;
-    while(read(fd, buffer, blockSize) > 0){
-        for(int i = 0; i < size; ++i){
+    int buffSize;
+    while((buffSize = read(fd, buffer, blockSize)) > 0){
+        int size_ = buffSize/sizeof(KRPair<int>);
+        for(int i = 0; i < size_; ++i){
+            auto key = std::to_string(data[i].key) + "\n";
+            write(fd2, key.c_str(), key.size());
+        }
+    }
+    close(fd);
+    close(fd2);
+}
+
+void convertToText2(int fd, const std::string& outFileName){
+    int fd2 = open(outFileName.c_str(), O_WRONLY | O_TRUNC | O_CREAT, S_IRWXU);
+    char buffer[blockSize] = {0};
+    KRPair<int>* data;
+    int size = blockSize/sizeof(KRPair<int>);
+    data = new(buffer) KRPair<int>[size];
+    std::cout << size * SEQ_WRITE_BLOCKS << std::endl;
+    int buffSize;
+    while((buffSize = read(fd, buffer, blockSize)) > 0){
+        int size_ = buffSize/sizeof(KRPair<int>);
+        for(int i = 0; i < size_; ++i){
             auto key = std::to_string(data[i].key) + "\n";
             write(fd2, key.c_str(), key.size());
         }
@@ -132,37 +160,41 @@ ExtSortPager::ExtSortPager(){
 }
 
 ExtSortPager::~ExtSortPager(){
-    if(inFileDescriptor != -1) ::close(inFileDescriptor);
-    if(outFileDescriptor != -1) ::close(outFileDescriptor);
-    if(readThread.joinable()) readThread.join();
-    if(writeThread.joinable()) writeThread.join();
+    flushRemaining();
 }
 
-void ExtSortPager::initialise(const char* inFileName, const char* outFileName, int blocksPerBuffer_, off_t offset_){
-    if(inFileDescriptor != -1) ::close(inFileDescriptor);
-    if(outFileDescriptor != -1) ::close(outFileDescriptor);
+void ExtSortPager::flushRemaining(){
     if(readThread.joinable()) readThread.join();
     if(writeThread.joinable()) writeThread.join();
+    if(inFileDescriptor != -1) ::close(inFileDescriptor);
+    if(outFileDescriptor != -1) ::close(outFileDescriptor);
+};
+
+void ExtSortPager::initialise(const char* inFileName, const char* outFileName, int blocksPerBuffer_, off_t offset_){
+    flushRemaining();
 
     this->blocksPerBuffer = blocksPerBuffer_;
     this->offset = offset_;
     open(inFileName, inFileDescriptor, O_RDONLY);
     open(outFileName, outFileDescriptor, O_WRONLY);
     fileSize = lseek(inFileDescriptor, 0, SEEK_END);
+    lseek(outFileDescriptor, offset, SEEK_SET);
 
     primaryOutputBuffer = std::make_unique<char[]>(blockSize);
     secondaryOutputBuffer = std::make_unique<char[]>(blockSize);
+    finishedFetchingAll = false;
+    finishedAll = false;
+    fullyFetchedBufferCount = 0;
     for(int buffNo = 0; buffNo < EXTERNAL_SORTING_K; ++buffNo){
         primaryInputBuffer[buffNo] = std::make_unique<char[]>(blockSize);
         secondaryInputBuffer[buffNo] = std::make_unique<char[]>(blockSize);
         finishedFetching[buffNo] = false;
         finished[buffNo] = false;
         timesFetched[buffNo] = 0;
+        bufferSize[buffNo] = 0;
+        secondaryBufferSize[buffNo] = 0;
         fetchFromStorage(buffNo);
     }
-    finishedFetchingAll = false;
-    finishedAll = false;
-    fullyFetchedBufferCount = 0;
 
 
     #ifdef EXT_READ_ASYNC
@@ -196,9 +228,9 @@ void ExtSortPager::fetchFromSecondary(int bufferNo){
 
 void ExtSortPager::fetchFromStorage(int bufferNo){
     if(finishedFetching[bufferNo]) return;
-    std::lock_guard<std::mutex> lock(inputMutex[bufferNo]);
-    uint64_t offset_ = this->offset + bufferNo * blocksPerBuffer * blockSize;
+    uint64_t offset_ = this->offset + (bufferNo * blocksPerBuffer + timesFetched[bufferNo]) * blockSize;
     if(offset >= fileSize){
+        secondaryBufferSize[bufferNo] = 0;
         finishedFetching[bufferNo] = true;
         ++fullyFetchedBufferCount;
         finishedFetchingAll = (fullyFetchedBufferCount == EXTERNAL_SORTING_K);
@@ -236,27 +268,27 @@ void ExtSortPager::storageFetcher(){
     while(true){
         std::unique_lock<std::mutex> lock(queueMutex);
         condition.wait(lock, [&](){return !fillRequests.empty();});
-        int buffNo = fillRequests.front();
+        auto request = std::move(fillRequests.front());
         fillRequests.pop();
         lock.unlock();
-        fetchFromStorage(buffNo);
+        fetchFromStorage(request.second);
+        request.first.set_value(true);
         if(finishedFetchingAll) break;
     }
     finishedAll = true;
 }
-void ExtSortPager::fetchInput(int bufferNo)
-{
-    {
-        std::lock_guard<std::mutex> lock(inputMutex[bufferNo]);
-        fetchFromSecondary(bufferNo);
-        if(finishedFetching[bufferNo]){
-            finished[bufferNo] = true;
-            return;
-        }
+void ExtSortPager::fetchInput(int bufferNo){
+    if(futures[bufferNo].valid()) futures[bufferNo].get();
+    fetchFromSecondary(bufferNo);
+    if(finishedFetching[bufferNo]){
+        finished[bufferNo] = true;
+        return;
     }
     {
         std::lock_guard<std::mutex> lock(queueMutex);
-        fillRequests.push(bufferNo);
+        std::promise<bool> fetchPromise;
+        futures[bufferNo] = fetchPromise.get_future();
+        fillRequests.emplace(std::move(fetchPromise), bufferNo);
     }
     condition.notify_one();
 }
@@ -287,8 +319,9 @@ void ExtSortPager::flushOutput(off_t outputBuffSize){
 
 // ---------------------- ExternalSort ----------------------
 template <typename key_t>
-ExternalSort<key_t>::ExternalSort(const std::string& databaseName_, const std::string& fileName_, int colNo_, int numRows_, int* rowStack)
+ExternalSort<key_t>::ExternalSort(const std::string& databaseName_, const std::string& fileName_, const std::string& finalSortedFileName_, int colNo_, int numRows_, int* rowStack)
 :deletedRows(rowStack[0]){
+    this->finalSortedFileName = finalSortedFileName_;
     this->fileName  = databaseName_ + "/" + fileName_;
     this->colNo     = colNo_;
     this->numRows   = numRows_;
@@ -303,20 +336,26 @@ ExternalSort<key_t>::ExternalSort(const std::string& databaseName_, const std::s
 template <typename key_t>
 void ExternalSort<key_t>::sort(int rowOffset, int columnOffset, uint32_t headerOffset, int32_t keySize){
     block_t totalBlocks = getData(rowOffset, columnOffset, headerOffset, keySize);
+    // convertToText(partiallySortedFileName[0], "initial.txt");
     int blockPerBuffer = seqWriteBlockSize/blockSize;
-    off_t fileSize = totalBlocks * blockSize;
     int in  = 0;
     int out = 1;
+    int i = 0;
     while(blockPerBuffer < totalBlocks){
         off_t offset = 0;
         while(offset < fileSize){
             kWayMerge(partiallySortedFileName[in], partiallySortedFileName[out], offset, blockPerBuffer, keySize);
             offset += (blockPerBuffer * blockSize * EXTERNAL_SORTING_K);
-            convertToText(partiallySortedFileName[out], "output2.txt");
         }
         blockPerBuffer *= EXTERNAL_SORTING_K;
         std::swap(in, out);
+        pager.flushRemaining();
+        // convertToText(partiallySortedFileName[in], "finalOutput" + std::to_string(i) + ".txt");
+        ++i;
     }
+    pager.flushRemaining();
+    std::filesystem::remove(partiallySortedFileName[out]);
+    std::filesystem::rename(partiallySortedFileName[in], finalSortedFileName);
 }
 
 template <typename key_t>
@@ -330,15 +369,17 @@ block_t ExternalSort<key_t>::getData(int rowOffset, int columnOffset, uint32_t h
     row_t currentRow = 0, dataIdx = 0;
     int deleteSize = deletedRows.size();
     int deleteIdx = 0;
-
+    block_t pageNo = 1;
     int32_t maxDataSize = SEQ_WRITE_BLOCKS * (blockSize/sizeof(data_t));
     data = new(seqReader.primaryOutputBuffer.get()) data_t[maxDataSize];
     block_t blockCount = 0;
+
     while(currentRow < numRows){
         seqReader.fetchInput();
         buffer = seqReader.primaryInputBuffer.get();
         bufferSize = seqReader.bufferSize;
         currentOffset = columnOffset;
+        pageNo = 1;
 
         while(currentOffset < bufferSize && currentRow < numRows){
             if(deleteIdx < deleteSize && currentRow == deletedRows[deleteIdx]){
@@ -346,22 +387,25 @@ block_t ExternalSort<key_t>::getData(int rowOffset, int columnOffset, uint32_t h
                 currentOffset += rowOffset;
                 continue;
             }
-
             memcpy(&key, buffer + currentOffset, keySize);
             // TODO: This will cause bug with dbms::string
             //       Create different set of functions for dbms::string using flexible array member
             data[dataIdx].key = key;
             data[dataIdx].row = currentRow;
             currentOffset += rowOffset;
+            if(currentOffset + rowOffset - columnOffset > pageNo * PAGE_SIZE){
+                currentOffset = pageNo * PAGE_SIZE + columnOffset;
+                ++pageNo;
+            }
             ++dataIdx;
             ++currentRow;
 
             if(dataIdx == maxDataSize){
-                std::sort(data, data + maxDataSize);
-                int numBlocks = shiftDataToBlockBoundary(seqReader.primaryOutputBuffer.get(), maxDataSize);
-                blockCount += numBlocks;
+                std::sort(data, data + maxDataSize, [](const data_t& d1, const data_t& d2)->bool{return d1.key < d2.key;});
+                shiftDataToBlockBoundary(seqReader.primaryOutputBuffer.get(), maxDataSize);
+                blockCount += SEQ_WRITE_BLOCKS;
                 seqReader.flushOutput();
-                data = new(seqReader.primaryOutputBuffer.get()) data_t[maxDataSize];
+                data = new(seqReader.primaryOutputBuffer.get()) data_t[seqReader.bufferSize/sizeof(data_t)];
                 dataIdx = 0;
             }
         }
@@ -369,19 +413,21 @@ block_t ExternalSort<key_t>::getData(int rowOffset, int columnOffset, uint32_t h
 
     if(dataIdx != 0){
         std::sort(data, data + dataIdx);
-        int numBlocks = shiftDataToBlockBoundary(seqReader.primaryOutputBuffer.get(), dataIdx);
-        blockCount += numBlocks;
-        seqReader.flushOutput(numBlocks * blockSize);
+        off_t size = shiftDataToBlockBoundary(seqReader.primaryOutputBuffer.get(), dataIdx);
+        blockCount += ((size + blockSize - 1)/ blockSize);
+        seqReader.flushOutput(size);
     }
 
+    seqReader.flushRemaining();
+    fileSize = seqReader.getOutputFileSize();
     return blockCount;
 }
 
 template<typename key_t>
-int ExternalSort<key_t>::shiftDataToBlockBoundary(char* buffer, int count){
+off_t ExternalSort<key_t>::shiftDataToBlockBoundary(char* buffer, int count){
     int countPerBlock = blockSize / sizeof(data_t);
     int blocksReqd = (count + countPerBlock - 1) / countPerBlock;
-    if(blockSize % sizeof(data_t) == 0) return blocksReqd;
+    if(blockSize % sizeof(data_t) == 0) return count * sizeof(data_t);
     int lastBlockCount = count - (blocksReqd - 1) * countPerBlock;
     off_t from  =  (count - lastBlockCount) * sizeof(data_t);
     off_t to    =  (blocksReqd - 1) * blockSize;
@@ -391,7 +437,9 @@ int ExternalSort<key_t>::shiftDataToBlockBoundary(char* buffer, int count){
         to -= blockSize;
         memcpy(buffer + to, buffer + from, countPerBlock * sizeof(data_t));
     }
-    return blocksReqd;
+
+    off_t actualSize = (blocksReqd - 1) * blockSize + lastBlockCount * sizeof(data_t);
+    return actualSize;
 }
 
 template <typename key_t>
@@ -404,20 +452,23 @@ void ExternalSort<key_t>::kWayMerge(const std::string& inFileName, const std::st
     int outputBufferIdx = 0;
     uint32_t maxBufferSize = blockSize/sizeof(data_t);
     outputBuffer = new(pager.primaryOutputBuffer.get()) data_t[maxBufferSize];
+
     for(int buffNo = 0; buffNo < EXTERNAL_SORTING_K; ++buffNo){
-        buffers[buffNo] = new(pager.primaryInputBuffer[buffNo].get()) data_t[maxBufferSize];
         if(pager.bufferSize[buffNo] == 0) continue;
+        buffers[buffNo] = new(pager.primaryInputBuffer[buffNo].get()) data_t[maxBufferSize];
         heap.emplace(buffers[buffNo][0], buffNo);
         bufferIdx[buffNo] = 1;
     }
 
     int blockCount = 0;
+    // int lineCount = 0;
     while(!heap.empty()){
         auto next = heap.top();
         heap.pop();
         int buffNo = next.second;
         outputBuffer[outputBufferIdx] = next.first;
         ++outputBufferIdx;
+        // ++lineCount;
         if(outputBufferIdx == maxBufferSize){
             pager.flushOutput();
             outputBuffer = new(pager.primaryOutputBuffer.get()) KRPair<key_t>[maxBufferSize];
@@ -425,10 +476,17 @@ void ExternalSort<key_t>::kWayMerge(const std::string& inFileName, const std::st
             ++blockCount;
         }
 
-        if(pager.finished[buffNo]) continue;
+        bool fetchBuffer = ((bufferIdx[buffNo] + 1) * sizeof(data_t) > pager.bufferSize[buffNo]);
+        if(pager.finished[buffNo] && fetchBuffer){
+            continue;
+        }
+
         heap.emplace(buffers[buffNo][bufferIdx[buffNo]], buffNo);
         ++bufferIdx[buffNo];
-        if(bufferIdx[buffNo] == pager.bufferSize[buffNo]){
+
+        fetchBuffer = ((bufferIdx[buffNo] + 1) * sizeof(data_t) > pager.bufferSize[buffNo]);
+        if(fetchBuffer){
+            if(pager.finished[buffNo]) continue;
             pager.fetchInput(buffNo);
             buffers[buffNo] = new(pager.primaryInputBuffer[buffNo].get()) KRPair<key_t>[maxBufferSize];
             bufferIdx[buffNo] = 0;

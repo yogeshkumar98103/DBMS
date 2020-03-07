@@ -11,6 +11,7 @@
 #include <condition_variable>
 #include <future>
 #include <queue>
+#include <filesystem>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -39,6 +40,7 @@ using block_t = int;
 class SeqPageReader{
     int inFileDescriptor;
     int outFileDescriptor;
+    off_t fileSize;
 
     std::thread readThread;
     std::thread writeThread;
@@ -62,6 +64,7 @@ public:
     void flushOutput(off_t outputBuffSize = seqWriteBlockSize);
     void flushOutputToStorage(off_t outputBuffSize);
     off_t getOutputFileSize();
+    void flushRemaining();
 
 private:
     static bool open(const char* fileName, int& fd, int mode);
@@ -115,13 +118,14 @@ class ExtSortPager{
     std::mutex inputMutex[EXTERNAL_SORTING_K];
     std::mutex queueMutex;
     std::condition_variable condition;
-    std::queue<int> fillRequests;
+    std::queue<std::pair<std::promise<bool>, int>> fillRequests;
 
     std::unique_ptr<char[]> secondaryInputBuffer[EXTERNAL_SORTING_K];
     std::unique_ptr<char[]> secondaryOutputBuffer;
     int secondaryBufferSize[EXTERNAL_SORTING_K];
     int timesFetched[EXTERNAL_SORTING_K] = {0};
     bool finishedFetching[EXTERNAL_SORTING_K] = {false};
+    std::future<bool> futures[EXTERNAL_SORTING_K];
     bool finishedFetchingAll = false;
     int fullyFetchedBufferCount = 0;
 
@@ -138,6 +142,7 @@ public:
     void fetchInput(int bufferNo);
     void flushOutput(off_t outputBuffSize = blockSize);
     void flushOutputToStorage(off_t outputBuffSize);
+    void flushRemaining();
 
 private:
     static bool open(const char* fileName, int& fd, int mode);
@@ -157,7 +162,7 @@ class ExternalSort{
     int colNo;                              /// Column Number on which sorting is done
 
 public:
-    ExternalSort(const std::string& fileName_, const std::string& databaseName_, int colNo_, int numRows_, int* rowStack);
+    ExternalSort(const std::string& fileName_, const std::string& databaseName_, const std::string& finalSortedFileName_, int colNo_, int numRows_, int* rowStack);
     void sort(int rowOffset, int columnOffset, uint32_t headerOffset, int32_t keySize);                            /// Wrapper which calls other functions
 
 private:
@@ -168,6 +173,7 @@ private:
     ExtSortPager pager;                        /// Handles disk I/O for partially sorted File
     std::vector<int> deletedRows;              /// Contains rows numbers of deleted rows
     row_t numRows;
+    off_t fileSize;
 
     /// Reads the main table and copy all valid entries to another file
     /// only (key, rowNo) is copied not the entire row
@@ -176,7 +182,7 @@ private:
     /// Reads the given input file and and performs k way merge
     /// Write the output to output file
     void kWayMerge(const std::string& inFileName, const std::string& outfileName, off_t offset, int blockPerBuffer, int32_t keySize);
-    int shiftDataToBlockBoundary(char* buffer, int count);
+    off_t shiftDataToBlockBoundary(char* buffer, int count);
 };
 
 #include "../ExternalSort.cpp"
