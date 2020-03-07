@@ -281,19 +281,21 @@ bool BPTree<key_t>::search(const std::string& strKey){
 }
 
 template <typename key_t>
-void BPTree<key_t>::traverseAllWithKey(const std::string& strKey){
+void BPTree<key_t>::traverseAllWithKey(const std::string& strKey, const std::function<void(row_t rowOfCurrent)>& funcToPrint){
     key_t key = convertDataType<key_t>(strKey);
     auto searchRes = searchUtil(key,-1);
     if(searchRes.node->size == searchRes.index) {
-        searchRes.index--;
-        incrementLinkedList(searchRes);
+//        searchRes.index--;
+//        incrementLinkedList(searchRes);
+        return;
     }
 
     while(searchRes.node && searchRes.node->keys[searchRes.index] == key){
-        std::cout << "( " << searchRes.node->keys[searchRes.index] << ","<< searchRes.node->pkeys[searchRes.index] << ") ";
+//        std::cout << "( " << searchRes.node->keys[searchRes.index] << ","<< searchRes.node->pkeys[searchRes.index] << ") ";
+        funcToPrint(searchRes.node->child[searchRes.index]);
         incrementLinkedList(searchRes);
     }
-    std::cout << std::endl;
+//    std::cout << std::endl;
 }
 
 template <typename key_t>
@@ -682,6 +684,53 @@ void BPTree<key_t>::mergeWithSibling(int indexFound, Node*& parent, Node* child,
         parent = rightSibling;
     }
 }
+
+// ----------------------- JOIN ----------------------
+template <typename key_t>
+void BPTree<key_t>::naturalJoinBothIndex(Node* rootOfOtherBTree, const std::function<void(row_t rowOfCurrent, row_t rowOfOther)>& funcToPrint){
+    Node* currentRoot = manager.root.get();
+
+    // when either one is empty
+    if(!currentRoot->size || !rootOfOtherBTree->size) return;
+
+    Node* leftLeafCurrent = leftMostLeaf(currentRoot);
+    Node* leftLeafOther = leftMostLeaf(rootOfOtherBTree);
+
+    result_t itrCurrent = {0, leftLeafCurrent}, itrOther = {0, leftLeafOther};
+    while(itrCurrent.node && itrOther.node) {
+        key_t keyOfCurrent = itrCurrent.node->keys[itrCurrent.index];
+        key_t keyOfOther = itrOther.node->keys[itrOther.index];
+        if(keyOfCurrent == keyOfOther){
+            result_t itrTempOther = itrOther;
+            row_t childOfCurrent = itrCurrent.node->child[itrCurrent.index];
+            while(itrTempOther.node && keyOfCurrent == itrTempOther.node->keys[itrTempOther.index]){
+                funcToPrint(childOfCurrent, itrTempOther.node->child[itrTempOther.index]);
+                incrementLinkedList(itrTempOther);
+            }
+            incrementLinkedList(itrCurrent);
+        }
+        else if(keyOfCurrent < keyOfOther){
+            incrementLinkedList(itrCurrent);
+        }
+        else {
+            incrementLinkedList(itrOther);
+        }
+    }
+}
+
+template <typename key_t>
+BPTNode<key_t>* BPTree<key_t>::leftMostLeaf(Node* node){
+    while(!node->isLeaf){
+        node = node->getChildNode(manager, 0);
+    }
+    return node;
+}
+
+template <typename key_t>
+void BPTree<key_t>::naturalJoinOneIndex(Node* rootOfOtherBTree, const std::function<void(row_t rowOfCurrent, row_t rowOfOther)>& funcToPrint){
+
+}
+
 
 
 // ----------------------- TRAVERSAL ----------------------

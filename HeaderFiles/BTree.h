@@ -107,7 +107,7 @@ public:
     bool search(const std::string& str);
     bool traverse(const std::function<bool(row_t row)>& callback) override;
     bool BFStraverse(const std::function<bool(row_t row)>& callback);
-    void traverseAllWithKey(const std::string& strKey);
+    void traverseAllWithKey(const std::string& strKey, const std::function<void(row_t rowOfCurrent)>& funcToPrint);
     void bfsTraverseDebug();
 
     /// true  -> (key, pkey) found and deleted
@@ -129,6 +129,8 @@ private:
     void splitNode(Node* parent, Node* child, int indexFound);
     void bfsTraverseUtilDebug(Node* start);
     bool traverseUtil(Node* start, const std::function<bool(row_t row)>& callback);
+    void naturalJoinBothIndex(Node* rootOfOtherBTree, const std::function<void(row_t rowOfCurrent, row_t rowOfOther)>& funcToPrint);
+    void naturalJoinOneIndex(Node* rootOfOtherBTree, const std::function<void(row_t rowOfCurrent, row_t rowOfOther)>& funcToPrint);
 
 //    void greaterThanEquals(const key_t& key);
 //    void smallerThanEquals(const key_t& key);
@@ -148,6 +150,8 @@ private:
     // Traverse Helpers
     bool iterateRightLeaf(Node* node, int startIndex, const std::function<bool(row_t row)>& callback);
 
+    // Join Helpers
+    BPTNode<key_t>* leftMostLeaf(Node* root);
 //   void removeMultipleAtLeaf(Node* leaf, int startIndex, int countToDelete);
 //   void iterateLeftLeaf(Node* node, int startIndex);
 };
