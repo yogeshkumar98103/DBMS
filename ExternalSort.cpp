@@ -112,45 +112,6 @@ void SeqPageReader::flushOutput(off_t outputBuffSize){
 #endif  // SEQ_WRITE_ASYNC
 
 
-void convertToText(const std::string& infileName, const std::string& outFileName){
-    int fd = open(infileName.c_str(), O_RDONLY);
-    int fd2 = open(outFileName.c_str(), O_WRONLY | O_TRUNC | O_CREAT, S_IRWXU);
-    char buffer[blockSize] = {0};
-    KRPair<int>* data;
-    int size = blockSize/sizeof(KRPair<int>);
-    data = new(buffer) KRPair<int>[size];
-    std::cout << size * SEQ_WRITE_BLOCKS << std::endl;
-    int buffSize;
-    while((buffSize = read(fd, buffer, blockSize)) > 0){
-        int size_ = buffSize/sizeof(KRPair<int>);
-        for(int i = 0; i < size_; ++i){
-            auto key = std::to_string(data[i].key) + "\n";
-            write(fd2, key.c_str(), key.size());
-        }
-    }
-    close(fd);
-    close(fd2);
-}
-
-void convertToText2(int fd, const std::string& outFileName){
-    int fd2 = open(outFileName.c_str(), O_WRONLY | O_TRUNC | O_CREAT, S_IRWXU);
-    char buffer[blockSize] = {0};
-    KRPair<int>* data;
-    int size = blockSize/sizeof(KRPair<int>);
-    data = new(buffer) KRPair<int>[size];
-    std::cout << size * SEQ_WRITE_BLOCKS << std::endl;
-    int buffSize;
-    while((buffSize = read(fd, buffer, blockSize)) > 0){
-        int size_ = buffSize/sizeof(KRPair<int>);
-        for(int i = 0; i < size_; ++i){
-            auto key = std::to_string(data[i].key) + "\n";
-            write(fd2, key.c_str(), key.size());
-        }
-    }
-    close(fd);
-    close(fd2);
-}
-
 
 // ---------------------- ExtSortPager ----------------------
 
@@ -172,7 +133,6 @@ void ExtSortPager::flushRemaining(){
 
 void ExtSortPager::initialise(const char* inFileName, const char* outFileName, int blocksPerBuffer_, off_t offset_){
     flushRemaining();
-
     this->blocksPerBuffer = blocksPerBuffer_;
     this->offset = offset_;
     open(inFileName, inFileDescriptor, O_RDONLY);
@@ -315,6 +275,26 @@ void ExtSortPager::flushOutput(off_t outputBuffSize){
     flushOutputToStorage(outputBuffSize);
 }
 #endif
+
+
+void convertToText(const std::string& infileName, const std::string& outFileName){
+    int fd = open(infileName.c_str(), O_RDONLY);
+    int fd2 = open(outFileName.c_str(), O_WRONLY | O_TRUNC | O_CREAT, S_IRWXU);
+    char buffer[blockSize] = {0};
+    KRPair<int>* data;
+    int size = blockSize/sizeof(KRPair<int>);
+    data = new(buffer) KRPair<int>[size];
+    int buffSize;
+    while((buffSize = read(fd, buffer, blockSize)) > 0){
+        int size_ = buffSize/sizeof(KRPair<int>);
+        for(int i = 0; i < size_; ++i){
+            auto key = std::to_string(data[i].key) + "\n";
+            write(fd2, key.c_str(), key.size());
+        }
+    }
+    close(fd);
+    close(fd2);
+}
 
 
 // ---------------------- ExternalSort ----------------------

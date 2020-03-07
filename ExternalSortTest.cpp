@@ -43,7 +43,6 @@ void generateDummyData(const std::string& filename, const std::string& databaseN
 }
 
 int main(){
-    // convertToText("extSortTemp/1_0_table2.bin", "output1.txt");
     std::string filename = "table2.bin";
     std::string databaseName = "Mydatabase";
     std::string finalName = "extSortTemp/finalOutput.bin";
@@ -52,18 +51,16 @@ int main(){
     int rowOffset = sizeof(int32_t) + sizeof(int32_t) + sizeof(char) + sizeof(pkey_t);
     int columnOffset = sizeof(int32_t);
     int numRows = 100000;
-//    auto t1 = std::chrono::high_resolution_clock::now();
-//    generateDummyData(filename, databaseName, headerOffset, numRows);
-//    auto t2 = std::chrono::high_resolution_clock::now();
-//    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()/1000.0 << std::endl;
-//    return 0;
+    auto t1 = std::chrono::high_resolution_clock::now();
+    generateDummyData(filename, databaseName, headerOffset, numRows);
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::cout << "Time For Data Generation: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()/1000.0 << std::endl;
     int rowStack[] = {0};
-    ExternalSort<int> sorter(databaseName, filename, finalName, 1, numRows, rowStack);
-
     auto t3 = std::chrono::high_resolution_clock::now();
+    ExternalSort<int> sorter(databaseName, filename, finalName, 1, numRows, rowStack);
     sorter.sort(rowOffset, columnOffset, headerOffset, keySize);
     auto t4 = std::chrono::high_resolution_clock::now();
-    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count()/1000.0 << std::endl;
+    std::cout << "Time for Sorting: " << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count()/1000.0 << std::endl;
     convertToText(finalName, "finalOutput.txt");
     return 0;
 }
