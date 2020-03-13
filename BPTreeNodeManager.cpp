@@ -1,7 +1,3 @@
-//
-// Created by Yogesh Kumar on 07/02/20.
-//
-
 #include "HeaderFiles/BPTreeNodeManager.h"
 
 /*

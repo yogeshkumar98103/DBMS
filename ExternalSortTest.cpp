@@ -1,11 +1,8 @@
-//
-// Created by Yogesh Kumar on 07/03/20.
-//
-
 #include "HeaderFiles/ExternalSort.h"
 #include <cstdlib>
 #include <chrono>
 #include <iostream>
+#include <ctime>
 
 void generateDummyData(const std::string& filename, const std::string& databaseName, off_t headerSize, int numRows){
     auto file = databaseName + "/" + filename;
@@ -17,6 +14,7 @@ void generateDummyData(const std::string& filename, const std::string& databaseN
     char buffer[PAGE_SIZE] = {0};
     int offset = 0;
     int rowSize = sizeof(int) + sizeof(int) + sizeof(char) + sizeof(pkey_t);
+    srand(time(0));
     for(pkey_t i = 0; i < numRows; ++i){
         if(offset + rowSize > PAGE_SIZE){
             write(fd, buffer, PAGE_SIZE);
@@ -52,7 +50,7 @@ int main(){
     int columnOffset = sizeof(int32_t);
     int numRows = 100000;
     auto t1 = std::chrono::high_resolution_clock::now();
-    generateDummyData(filename, databaseName, headerOffset, numRows);
+//    generateDummyData(filename, databaseName, headerOffset, numRows);
     auto t2 = std::chrono::high_resolution_clock::now();
     std::cout << "Time For Data Generation: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()/1000.0 << std::endl;
     int rowStack[] = {0};

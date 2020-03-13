@@ -1,7 +1,3 @@
-//
-// Created by Yogesh Kumar on 03/02/20.
-//
-
 #include "HeaderFiles/TableManager.h"
 #include <ncurses.h>
 

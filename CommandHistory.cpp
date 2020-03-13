@@ -1,5 +1,4 @@
 #include <deque>
-//#include <ncurses.h>
 #include <Constants.h>
 #include <string>
 #include "Interface.cpp"

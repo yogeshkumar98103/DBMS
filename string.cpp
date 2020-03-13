@@ -1,7 +1,3 @@
-//
-// Created by Yogesh Kumar on 06/03/20.
-//
-
 #include "HeaderFiles/DataTypes.h"
 
 // CONVERT TEMPLATE SECIALIZATION

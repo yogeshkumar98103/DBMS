@@ -1,7 +1,3 @@
-//
-// Created by Yogesh Kumar on 07/02/20.
-//
-
 #include "HeaderFiles/BTree.h"
 
 template <typename key_t> int32_t BPTNode<key_t>::pKeyOffset = P_KEY_OFFSET(sizeof(key_t));

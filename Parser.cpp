@@ -1,13 +1,8 @@
-//
-// Created by Yogesh Kumar on 2020-01-31.
-//
-
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 #include <string>
 #include <vector>
-//#include <ncurses.h>
 #include "HeaderFiles/Constants.h"
 #include "HeaderFiles/DataTypes.h"
 #include "HeaderFiles/TableManager.h"

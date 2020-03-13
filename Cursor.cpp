@@ -1,6 +1,3 @@
-//
-// Created by Yogesh Kumar on 2020-01-31.
-//
 #include "HeaderFiles/Table.h"
 
 Cursor::Cursor(Table* table){

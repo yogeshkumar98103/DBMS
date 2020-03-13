@@ -1,6 +1,3 @@
-//
-// Created by Yogesh Kumar on 04/02/20.
-//
 #include "Parser.cpp"
 
 enum class ExecuteResult{
