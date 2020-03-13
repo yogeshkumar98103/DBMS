@@ -21,8 +21,8 @@ Following Features will be added in future
 create table <table-name>{<col-1>: DATATYPE , <col-2> : DATATYPE, ...}
 index on {<col-1>, <col-2>} in table
 insert into <table-name>{<col-1-data> , <col-1-data> , ...}
-update <table-name> set {<col-1> = <data-1>, <col-1> = <data-1>, ...}
-update <table-name> set {<col-1> = <data-1>, <col-1> = <data-1>, ...} where CONDITION
+update <table-name>{<col-1> = <data-1>, <col-1> = <data-1>, ...}
+update <table-name>{<col-1> = <data-1>, <col-1> = <data-1>, ...} where CONDITION
 delete from <table-name> where <CONDITION>
 delete table <table-name>
 drop table <table-name>
