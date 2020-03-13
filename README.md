@@ -5,10 +5,11 @@ This is an implementation of Relational Database from scratch in C++.
 ### Features
 This supports following commands as of now:-
 1. Insert
-2. Delete
-3. Select
-4. Update
-5. Delete
+2. Index
+3. Delete
+4. Select
+5. Update
+6. Delete
 
 Following Features will be added in future
 1. Join
@@ -47,3 +48,17 @@ select * from <table-name> where CONDITION
  *  `col <= data`
  *  `col >= data`
  *  `condition1 && condition2`
+ 
+ ### Examples
+~~~~sql
+create table mytable {rollno: int, name: string(50), grade: char)}
+index on {rollno} in mytable
+
+insert into mytable { "1", "Yogesh Kumar", "A" }
+insert into mytable { "2", "Pranav Guptar", "A" }
+insert into mytable { "3", "Yogesh Kumar", "B" }
+
+select * from mytable
+
+delete from mytable where rollno == "3"
+~~~~
