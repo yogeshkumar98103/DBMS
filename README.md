@@ -1,4 +1,4 @@
-# Database Managent System
+# Database Management System
 
 This is an implementation of Relational Database from scratch in C++.
 
