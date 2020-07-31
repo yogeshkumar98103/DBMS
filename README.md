@@ -39,7 +39,7 @@ select * from <table-name> where CONDITION
  5. bool
  6. char
  
- #### Condition
+ #### Condition *
  *  `col == data`
  *  `col != data`
  *  `col > data`
@@ -61,3 +61,5 @@ select * from mytable
 
 delete from mytable where rollno == "3"
 ~~~~
+
+* These Features are not fully supported.
