@@ -50,7 +50,7 @@ select * from <table-name> where CONDITION
  
  ### Examples
 ~~~~sql
-create table mytable {rollno: int, name: string(50), grade: char)}
+create table mytable {rollno: int, name: string(50), grade: char}
 index on {rollno} in mytable
 
 insert into mytable { "1", "Yogesh Kumar", "A" }
