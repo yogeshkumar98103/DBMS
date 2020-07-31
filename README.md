@@ -8,7 +8,7 @@ This supports following commands as of now:-
 2. Index
 3. Delete
 4. Select
-5. Update
+5. Update *
 
 Following Features will be added in future
 1. Join
@@ -62,4 +62,4 @@ select * from mytable
 delete from mytable where rollno == "3"
 ~~~~
 
-* These Features are not fully supported.
+\* These Features are not fully supported.
