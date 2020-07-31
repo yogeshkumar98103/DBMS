@@ -9,7 +9,6 @@ This supports following commands as of now:-
 3. Delete
 4. Select
 5. Update
-6. Delete
 
 Following Features will be added in future
 1. Join
