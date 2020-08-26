@@ -6,3 +6,5 @@ Input.txt
 .idea
 *.exe
 *.o
+
+.vscode/
